@@ -1,5 +1,7 @@
 # RoFo backend (SST v3.19.3)
 
+Deploying for the first time? Follow [DEPLOY.md](./DEPLOY.md). This file is the reference for how each part works.
+
 Run: `npx sst dev --stage dev` (needs AWS credentials). Seed: `npm run seed`.
 
 Stack: DynamoDB single table, Cognito (groups Admin, Agent, Client) + identity pool,
