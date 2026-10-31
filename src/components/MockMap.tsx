@@ -7,7 +7,7 @@ interface Props {
   onHover: (id: string | null) => void;
 }
 
-/** Stylised map with price pins. Replace with Mapbox or Leaflet later. */
+/** Stylised map with price pins. Fallback when WebGL is unavailable. */
 export function MockMap({ items, activeId, onHover }: Props) {
   // Project real coordinates into the box, with padding, using the bounds of the current results.
   const lats = items.map((l) => l.lat), lngs = items.map((l) => l.lng);

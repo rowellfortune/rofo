@@ -1,8 +1,20 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import * as maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+// Bundlers must serve the worker as its own file. Vite's ?url import does that.
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import type { Listing } from '../types';
+import { MockMap } from './MockMap';
+
+maplibregl.setWorkerUrl(workerUrl);
+
+/**
+ * Default style: OpenFreeMap (free, no key). Override with VITE_MAP_STYLE,
+ * for example a MapTiler or Stadia style URL, or a self-hosted style.
+ */
+export const MAP_STYLE: string =
+  import.meta.env.VITE_MAP_STYLE ?? 'https://tiles.openfreemap.org/styles/liberty';
 
 interface Props {
   items: Listing[];
@@ -16,28 +28,29 @@ interface Props {
 const label = (price: number): string =>
   price >= 1_000_000 ? `${(price / 1e6).toFixed(1)}M` : price >= 10_000 ? `${Math.round(price / 1000)}k` : String(price);
 
-/** Mapbox GL map with price pins. Loaded lazily so the bundle only grows on map pages. */
-export default function MapboxMap({ items, activeId, onHover, single }: Props) {
+/** MapLibre GL map with price pins. Falls back to the mock map if WebGL is unavailable. */
+export default function MapLibreMap({ items, activeId = null, onHover, single }: Props) {
   const box = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
+  const map = useRef<maplibregl.Map | null>(null);
   const pins = useRef<Map<string, HTMLElement>>(new Map());
-  const markers = useRef<mapboxgl.Marker[]>([]);
+  const markers = useRef<maplibregl.Marker[]>([]);
+  const [failed, setFailed] = useState(false);
   const navigate = useNavigate();
-  // Keep the latest callbacks without re-creating the map.
+  // Keep the latest callback without re-creating the map.
   const hoverRef = useRef(onHover);
   hoverRef.current = onHover;
 
   // Create the map once.
   useEffect(() => {
     if (!box.current) return;
-    mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN ?? '';
-    const m = new mapboxgl.Map({
-      container: box.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [-62, 12], // Caribbean
-      zoom: 3.2,
-    });
-    m.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+    let m: maplibregl.Map;
+    try {
+      m = new maplibregl.Map({ container: box.current, style: MAP_STYLE, center: [-62, 12], zoom: 3.2 });
+    } catch {
+      setFailed(true); // no WebGL
+      return;
+    }
+    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     map.current = m;
     return () => { m.remove(); map.current = null; };
   }, []);
@@ -52,7 +65,7 @@ export default function MapboxMap({ items, activeId, onHover, single }: Props) {
 
     items.forEach((l) => {
       const el = document.createElement('button');
-      el.className = 'mb-pin';
+      el.className = 'gl-pin';
       el.type = 'button';
       el.textContent = label(l.price);
       el.setAttribute('aria-label', `${l.address}, ${l.city}`);
@@ -60,13 +73,13 @@ export default function MapboxMap({ items, activeId, onHover, single }: Props) {
       el.onmouseleave = () => hoverRef.current?.(null);
       if (!single) el.onclick = () => navigate(`/property/${l.id}`);
       pins.current.set(l.id, el);
-      markers.current.push(new mapboxgl.Marker({ element: el }).setLngLat([l.lng, l.lat]).addTo(m));
+      markers.current.push(new maplibregl.Marker({ element: el }).setLngLat([l.lng, l.lat]).addTo(m));
     });
 
     if (items.length === 1) {
       m.jumpTo({ center: [items[0].lng, items[0].lat], zoom: single ? 14 : 11 });
     } else if (items.length > 1) {
-      const b = new mapboxgl.LngLatBounds();
+      const b = new maplibregl.LngLatBounds();
       items.forEach((l) => b.extend([l.lng, l.lat]));
       m.fitBounds(b, { padding: 60, maxZoom: 12, duration: 600 });
     }
@@ -77,5 +90,6 @@ export default function MapboxMap({ items, activeId, onHover, single }: Props) {
     pins.current.forEach((el, id) => el.classList.toggle('active', id === activeId));
   }, [activeId, items]);
 
-  return <div ref={box} className="mapbox" aria-label="Map of results" />;
+  if (failed) return <MockMap items={items} activeId={activeId} onHover={onHover ?? (() => {})} />;
+  return <div ref={box} className="map-gl" aria-label="Map of results" />;
 }

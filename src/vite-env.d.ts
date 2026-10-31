@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  /** Mapbox public access token (starts with pk.). Optional: the app falls back to a mock map. */
-  readonly VITE_MAPBOX_TOKEN?: string;
+  /** Optional map style URL. Defaults to OpenFreeMap "liberty" (free, no key). */
+  readonly VITE_MAP_STYLE?: string;
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv;
