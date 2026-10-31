@@ -8,7 +8,7 @@ interface ImportMetaEnv {
   readonly VITE_IDENTITY_POOL_ID?: string;
   readonly VITE_GRAPHQL_URL?: string;
   readonly VITE_CDN_URL?: string;
-  /** Optional map style URL. Defaults to OpenFreeMap "liberty" (free, no key). */
+  /** Optional map style URL. Defaults to OpenFreeMap "dark" (free, no key). */
   readonly VITE_MAP_STYLE?: string;
 }
 interface ImportMeta {

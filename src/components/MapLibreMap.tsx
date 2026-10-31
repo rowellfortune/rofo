@@ -10,11 +10,11 @@ import { MockMap } from './MockMap';
 maplibregl.setWorkerUrl(workerUrl);
 
 /**
- * Default style: OpenFreeMap (free, no key). Override with VITE_MAP_STYLE,
+ * Default style: OpenFreeMap dark (free, no key). Override with VITE_MAP_STYLE,
  * for example a MapTiler or Stadia style URL, or a self-hosted style.
  */
 export const MAP_STYLE: string =
-  import.meta.env.VITE_MAP_STYLE ?? 'https://tiles.openfreemap.org/styles/liberty';
+  import.meta.env.VITE_MAP_STYLE ?? 'https://tiles.openfreemap.org/styles/dark';
 
 interface Props {
   items: Listing[];
