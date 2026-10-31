@@ -31,3 +31,29 @@ Rules enforced in the backend:
 Test (in-memory fake, not real DynamoDB): `npm run test:backend`
 
 Not built yet: closing a pool, exit and refund flow, payout to the seller, notifications, KYC.
+
+## Connect the frontend
+
+Run `npx sst deploy --stage dev`, then copy the outputs into `.env.local`:
+
+| Output            | Env var                       |
+| ----------------- | ----------------------------- |
+| region            | VITE_AWS_REGION               |
+| userPoolId        | VITE_USER_POOL_ID             |
+| userPoolClientId  | VITE_USER_POOL_CLIENT_ID      |
+| identityPoolId    | VITE_IDENTITY_POOL_ID         |
+| graphqlUrl        | VITE_GRAPHQL_URL              |
+| restUrl           | VITE_REST_URL (photo uploads) |
+| cdnUrl            | VITE_CDN_URL                  |
+
+With none of these set the app runs as a demo on mock data.
+
+## Agent dashboard
+
+Routes: `/agent` (my listings), `/agent/new`, `/agent/:id/edit`, `/agent/:id/inquiries`.
+Only the `Agent` and `Admin` groups get in. New sign ups land in `Client`, so promote people by hand:
+
+`aws cognito-idp admin-add-user-to-group --user-pool-id <id> --username <email> --group-name Agent`
+
+They must sign out and back in so the token carries the new group.
+Photos go browser to S3 through a presigned POST (8 MB, JPEG/PNG/WebP). Location is set by dropping a pin on the map.

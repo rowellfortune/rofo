@@ -28,6 +28,7 @@ export interface Listing {
   lng: number; // longitude in degrees
   agent: { name: string; agency: string; phone: string };
   images?: string[]; // photo URLs from the API. Missing in demo mode.
+  imageKeys?: string[]; // S3 keys behind `images`, needed when editing a listing
   createdAt?: string;
 }
 
@@ -85,4 +86,14 @@ export interface Pool {
   proposals: Proposal[];
   /** Server totals (API mode). Lists of members are private, so counts come from here. */
   summary?: { raised: number; goal: number; memberCount: number; viewerIsMember: boolean };
+}
+
+/** A message a buyer sent to an agent about a listing. */
+export interface Inquiry {
+  id: string;
+  listingId: string;
+  name: string;
+  email: string;
+  message: string;
+  createdAt: string;
 }

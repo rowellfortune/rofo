@@ -17,6 +17,13 @@ export const Q = {
   toggleFavorite: `mutation Fav($listingId: ID!) { toggleFavorite(listingId: $listingId) { success error data } }`,
   sendInquiry: `mutation Inq($input: InquiryInput!) { sendInquiry(input: $input) { success error data { id } } }`,
 
+  myListings: `query Mine { myListings { success error data { ${LISTING} } } }`,
+  createListing: `mutation Create($input: ListingInput!) { createListing(input: $input) { success error data { id } } }`,
+  updateListing: `mutation Update($id: ID!, $input: ListingInput!) { updateListing(id: $id, input: $input) { success error data { id } } }`,
+  deleteListing: `mutation Del($id: ID!) { deleteListing(id: $id) { success error data } }`,
+  listingInquiries: `query Inq($listingId: ID!) { listingInquiries(listingId: $listingId) {
+    success error data { id listingId name email message createdAt } } }`,
+
   listPools: `query Pools($listingId: ID) { listPools(listingId: $listingId, limit: 50) {
     success error data { items { ${POOL} } } } }`,
   myPools: `query Mine { myPools { success error data { ${POOL} } } }`,

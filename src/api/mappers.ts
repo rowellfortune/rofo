@@ -46,7 +46,7 @@ export function toListing(a: ApiListing): Listing {
     description: a.description, features: a.features, hue: hueFromId(a.id),
     lat: a.lat ?? NaN, lng: a.lng ?? NaN,
     agent: { name: a.agentName, agency: a.agency, phone: a.phone },
-    images: a.images.map(imageUrl), createdAt: a.createdAt,
+    images: a.images.map(imageUrl), imageKeys: a.images, createdAt: a.createdAt,
   };
 }
 

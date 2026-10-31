@@ -10,6 +10,7 @@ export const apiConfig = {
   userPoolClientId: e.VITE_USER_POOL_CLIENT_ID ?? '',
   identityPoolId: e.VITE_IDENTITY_POOL_ID ?? '',
   graphqlUrl: e.VITE_GRAPHQL_URL ?? '',
+  restUrl: (e.VITE_REST_URL ?? '').replace(/\/$/, ''),
   cdnUrl: (e.VITE_CDN_URL ?? '').replace(/\/$/, ''),
 };
 

@@ -82,7 +82,7 @@ export function Home() {
             <Icon name="building" />
             <h3>List as an agent</h3>
             <p>Publish properties, receive inquiries and manage your portfolio from a single dashboard.</p>
-            <a href="#list">List a property →</a>
+            <Link to="/agent">List a property →</Link>
           </div>
         </div>
       </section>

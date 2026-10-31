@@ -1,5 +1,6 @@
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
+import { isAgent } from './RequireAgent';
 
 /** Logo mark: a house shape in the brand colors. */
 export function Logo() {
@@ -43,7 +44,7 @@ export function Header() {
           ) : (
             <Link className="btn btn-ghost" to="/login">Log in</Link>
           )}
-          <button className="btn btn-primary">List a property</button>
+          <Link className="btn btn-primary" to={isAgent(user?.groups) ? '/agent' : '/agent/new'}>{isAgent(user?.groups) ? 'Dashboard' : 'List a property'}</Link>
         </div>
       </div>
     </header>

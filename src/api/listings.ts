@@ -40,6 +40,9 @@ export async function apiSearch(params: URLSearchParams): Promise<Listing[]> {
 /** Small cache so cards that show the same listing do not refetch. */
 const cache = new Map<string, Promise<Listing | undefined>>();
 
+/** Forget a cached listing (after an edit or delete). */
+export const clearListingCache = (id: string): void => { cache.delete(id); };
+
 /** One listing by id (public). Returns undefined if it does not exist. */
 export function apiGetListing(id: string): Promise<Listing | undefined> {
   let hit = cache.get(id);

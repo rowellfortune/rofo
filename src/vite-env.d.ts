@@ -8,6 +8,8 @@ interface ImportMetaEnv {
   readonly VITE_IDENTITY_POOL_ID?: string;
   readonly VITE_GRAPHQL_URL?: string;
   readonly VITE_CDN_URL?: string;
+  /** REST API base URL (image upload presign). From the `restUrl` deploy output. */
+  readonly VITE_REST_URL?: string;
   /** Optional map style URL. Defaults to OpenFreeMap "dark" (free, no key). */
   readonly VITE_MAP_STYLE?: string;
 }
