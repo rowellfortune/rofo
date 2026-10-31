@@ -11,7 +11,8 @@
     "typecheck:backend": "tsc -p tsconfig.backend.json",
     "sst:dev": "sst dev",
     "deploy:prod": "sst deploy --stage production",
-    "seed": "sst shell --stage dev -- tsx backend/scripts/seed.ts"
+    "seed": "sst shell --stage dev -- tsx backend/scripts/seed.ts",
+    "test:backend": "SST_RESOURCE_Table={\\\"name\\\":\\\"test-table\\\"} SST_RESOURCE_App={\\\"name\\\":\\\"rofo\\\",\\\"stage\\\":\\\"test\\\"} tsx --test backend/test/pools.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1161.0",

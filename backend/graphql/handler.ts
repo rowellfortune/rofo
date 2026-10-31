@@ -3,6 +3,7 @@ import { AppError } from '../utils/AppError';
 import { GraphqlUtil, getCaller, requireGroup } from '../utils/GraphqlUtil';
 import * as L from '../lib/listings';
 import * as Q from '../lib/inquiries';
+import * as P from '../lib/pools';
 
 const AGENT_GROUPS = ['Agent', 'Admin'];
 
@@ -50,6 +51,29 @@ async function route(event: AppSyncResolverEvent<any>) {
       return L.toggleFavorite(getCaller(event), args.listingId);
     case 'sendInquiry':
       return Q.sendInquiry(getCaller(event), args.input);
+
+    // Pools (any signed-in user; the lib checks membership and Admin)
+    case 'listPools':
+      getCaller(event);
+      return P.listPools(args);
+    case 'getPool':
+      return P.getPool(getCaller(event), args.id);
+    case 'myPools':
+      return P.myPools(getCaller(event));
+    case 'createPool':
+      return P.createPool(getCaller(event), args.input);
+    case 'joinPool':
+      return P.joinPool(getCaller(event), args.poolId, args.monthly);
+    case 'leavePool':
+      return P.leavePool(getCaller(event), args.poolId);
+    case 'createPoolProposal':
+      return P.createProposal(getCaller(event), args.poolId, args.input);
+    case 'votePoolProposal':
+      return P.voteProposal(getCaller(event), args.poolId, args.proposalId, args.choice);
+    case 'recordPoolContribution': {
+      const c = getCaller(event); requireGroup(c, ['Admin']);
+      return P.recordContribution(c, args.poolId, args.userId, args.amount, args.note);
+    }
 
     default:
       throw new AppError(`Unknown field ${event.info.parentTypeName}.${fieldName}`, 400);

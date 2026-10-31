@@ -50,8 +50,9 @@ const dataSource = new aws.appsync.DataSource('GraphqlLambda', {
 
 // Direct Lambda resolvers (no VTL). Field list must match schema.graphql.
 const fields: Record<'Query' | 'Mutation', string[]> = {
-  Query: ['getListing', 'searchListings', 'myListings', 'myFavorites', 'listingInquiries'],
-  Mutation: ['createListing', 'updateListing', 'deleteListing', 'toggleFavorite', 'sendInquiry'],
+  Query: ['getListing', 'searchListings', 'myListings', 'myFavorites', 'listingInquiries', 'listPools', 'getPool', 'myPools'],
+  Mutation: ['createListing', 'updateListing', 'deleteListing', 'toggleFavorite', 'sendInquiry',
+    'createPool', 'joinPool', 'leavePool', 'createPoolProposal', 'votePoolProposal', 'recordPoolContribution'],
 };
 (Object.entries(fields) as ['Query' | 'Mutation', string[]][]).forEach(([type, names]) => {
   names.forEach((field) => {

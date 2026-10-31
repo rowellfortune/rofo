@@ -100,12 +100,86 @@ input InquiryInput {
   message: String!
 }
 
+enum PoolStatus { FORMING SAVING READY CLOSED }
+
+type PoolMember {
+  userId: ID!
+  name: String!
+  monthly: Float!
+  contributed: Float!
+  sharePct: Float!
+  joinedAt: AWSDateTime!
+}
+
+type PoolLedgerEntry {
+  id: ID!
+  userId: ID!
+  amount: Float!
+  note: String!
+  createdAt: AWSDateTime!
+}
+
+type PoolProposal {
+  id: ID!
+  title: String!
+  detail: String!
+  createdBy: ID!
+  createdAt: AWSDateTime!
+  yes: Int!
+  no: Int!
+  needed: Int!
+  status: String!
+  myVote: String
+}
+
+# Members, ledger and proposals are only filled for members of the pool.
+type Pool {
+  id: ID!
+  name: String!
+  listingId: ID!
+  listingPrice: Float!
+  goal: Float!
+  raised: Float!
+  maxMembers: Int!
+  memberCount: Int!
+  targetMonths: Int!
+  status: PoolStatus!
+  creatorId: ID!
+  createdAt: AWSDateTime!
+  viewerIsMember: Boolean
+  members: [PoolMember!]!
+  ledger: [PoolLedgerEntry!]!
+  proposals: [PoolProposal!]!
+}
+
+type PoolPage { items: [Pool!]! nextToken: String }
+
+type PoolResult { success: Boolean! data: Pool error: String }
+type PoolPageResult { success: Boolean! data: PoolPage error: String }
+type PoolsResult { success: Boolean! data: [Pool!] error: String }
+
+input CreatePoolInput {
+  name: String!
+  listingId: ID!
+  maxMembers: Int!
+  targetMonths: Int!
+  monthly: Float!
+}
+
+input PoolProposalInput {
+  title: String!
+  detail: String
+}
+
 type Query {
   getListing(id: ID!): ListingResult @aws_iam @aws_cognito_user_pools
   searchListings(input: SearchListingsInput!): ListingPageResult @aws_iam @aws_cognito_user_pools
   myListings: ListingsResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
   myFavorites: ListingsResult @aws_cognito_user_pools
   listingInquiries(listingId: ID!): InquiriesResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
+  listPools(listingId: ID, limit: Int, nextToken: String): PoolPageResult @aws_cognito_user_pools
+  getPool(id: ID!): PoolResult @aws_cognito_user_pools
+  myPools: PoolsResult @aws_cognito_user_pools
 }
 
 type Mutation {
@@ -114,6 +188,12 @@ type Mutation {
   deleteListing(id: ID!): BooleanResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
   toggleFavorite(listingId: ID!): BooleanResult @aws_cognito_user_pools
   sendInquiry(input: InquiryInput!): InquiryResult @aws_cognito_user_pools
+  createPool(input: CreatePoolInput!): PoolResult @aws_cognito_user_pools
+  joinPool(poolId: ID!, monthly: Float!): BooleanResult @aws_cognito_user_pools
+  leavePool(poolId: ID!): BooleanResult @aws_cognito_user_pools
+  createPoolProposal(poolId: ID!, input: PoolProposalInput!): BooleanResult @aws_cognito_user_pools
+  votePoolProposal(poolId: ID!, proposalId: ID!, choice: String!): BooleanResult @aws_cognito_user_pools
+  recordPoolContribution(poolId: ID!, userId: ID!, amount: Float!, note: String): BooleanResult @aws_cognito_user_pools(cognito_groups: ["Admin"])
 }
 
 schema { query: Query mutation: Mutation }

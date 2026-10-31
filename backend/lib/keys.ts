@@ -25,6 +25,24 @@ export function listingIndexKeys(l: {
   };
 }
 
+/** Pool META item key. */
+export const poolKey = (id: string) => ({ pk: `POOL#${id}`, sk: 'META' });
+
+/** Pool member item key. One item per member. */
+export const memberKey = (poolId: string, userId: string) => ({ pk: `POOL#${poolId}`, sk: `MEMBER#${userId}` });
+
+/** Index keys for a pool META item. gsi1 = pools per listing, gsi2 = all pools feed. */
+export function poolIndexKeys(p: { id: string; listingId: string; createdAt: string }) {
+  const stamp = `${p.createdAt}#${p.id}`;
+  return { gsi1pk: `POOLLISTING#${p.listingId}`, gsi1sk: stamp, gsi2pk: 'POOLS', gsi2sk: stamp };
+}
+
+/** Index keys for a member item. gsi3 lets us list "my pools". */
+export const memberIndexKeys = (userId: string, poolCreatedAt: string, poolId: string) => ({
+  gsi3pk: `MEMBER#${userId}`,
+  gsi3sk: `${poolCreatedAt}#${poolId}`,
+});
+
 /** Strip table keys before returning an item to GraphQL. */
 export function stripKeys<T extends Record<string, unknown>>(item: T) {
   const { pk, sk, gsi1pk, gsi1sk, gsi2pk, gsi2sk, gsi3pk, gsi3sk, entity, ...rest } = item as Record<string, unknown>;

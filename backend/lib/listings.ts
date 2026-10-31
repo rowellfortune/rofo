@@ -133,10 +133,10 @@ export interface SearchInput {
   nextToken?: string | null;
 }
 
-const encodeToken = (key: Record<string, unknown> | undefined) =>
+export const encodeToken = (key: Record<string, unknown> | undefined) =>
   key ? Buffer.from(JSON.stringify(key)).toString('base64url') : null;
 
-function decodeToken(token: string | null | undefined) {
+export function decodeToken(token: string | null | undefined) {
   if (!token) return undefined;
   try { return JSON.parse(Buffer.from(token, 'base64url').toString()); }
   catch { throw new AppError('Invalid nextToken', 400); }
