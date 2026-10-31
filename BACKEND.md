@@ -20,7 +20,7 @@ META, MEMBER#<user>, LEDGER#<iso>#<id>, PROP#<id>, VOTE#<proposal>#<user>.
 `getPool` is one Query. "My pools" uses gsi3 (`MEMBER#<user>`), pools per listing use gsi1, the feed uses gsi2.
 
 GraphQL: listPools, getPool, myPools, createPool, joinPool, leavePool, createPoolProposal,
-votePoolProposal, recordPoolContribution (Admin only).
+votePoolProposal, recordPoolContribution and reversePoolContribution (Admin only).
 
 Rules enforced in the backend:
 - Seat limit and double join: one DynamoDB transaction (member put + memberCount condition).
@@ -90,3 +90,15 @@ Then sign out and in. Not built yet: email to the applicant on a decision (needs
 Policy lives in `infra/policy.ts`: point in time recovery on for every stage, table deletion protection on `production`,
 log retention 7 days on dev and 90 days on `production` (Lambda and API access logs).
 Details, how to verify after deploy, and how to restore are in [DEPLOY.md](./DEPLOY.md) section 11.
+
+### Pool payments and votes
+
+- `recordPoolContribution` needs a `reference` (escrow, bank or provider transaction id). A reference can be recorded once per pool
+  (case and spaces ignored), enforced by a marker item in the same transaction, so a double click or a webhook retry cannot credit twice.
+- The ledger is append only. `reversePoolContribution` marks the original reversed and adds a negative entry. A payment reverses once,
+  a reversal cannot be reversed, and the member balance can never go below zero. A mistake is fixed by reversing and recording again.
+- Admins can read a full pool (members, shares, ledger, votes) without joining, because they run the payment side. Other non-members see totals only.
+- Members create proposals (`createPoolProposal`) and vote (`votePoolProposal`). One vote per member per proposal, changeable.
+  A proposal passes at more than half of the members voting yes. Nothing happens automatically when it passes.
+- Screens: `/pools/:id` has New proposal, vote buttons with a threshold bar, a payments list, a member summary,
+  and for admins a record payment form and a Reverse button on each payment.

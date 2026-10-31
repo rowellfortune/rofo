@@ -117,7 +117,11 @@ async function route(event: AppSyncResolverEvent<any>) {
       return P.voteProposal(getCaller(event), args.poolId, args.proposalId, args.choice);
     case 'recordPoolContribution': {
       const c = getCaller(event); requireGroup(c, ['Admin']);
-      return P.recordContribution(c, args.poolId, args.userId, args.amount, args.note);
+      return P.recordContribution(c, args.poolId, args.userId, args.amount, args.reference, args.note);
+    }
+    case 'reversePoolContribution': {
+      const c = getCaller(event); requireGroup(c, ['Admin']);
+      return P.reverseContribution(c, args.poolId, args.entryId, args.reason);
     }
 
     default:

@@ -36,8 +36,8 @@ Stage names must be lowercase letters and digits. The images bucket name is buil
   ```bash
   npm run build              # app typecheck + production build
   npm run typecheck:backend  # backend, infra and tests
-  npm run test:frontend      # 18 tests
-  npm run test:backend       # 19 tests
+  npm run test:frontend      # 24 tests
+  npm run test:backend       # 24 tests
   ```
 
 ## 3. Decide before you deploy
@@ -144,16 +144,16 @@ Run in order. Each line says what to expect. Tick it only when you saw it.
 | 11 | Buyer: click **Save** on a listing, reload the page | It still shows **Saved** |
 | 12 | Buyer: `/pools/new`, create a pool. Join it from another account. | Member table shows both. A non-member sees totals only. |
 | 13 | Buyer account: try `/agent` and `/admin/applications` | "Agent access needed" and "Admins only" |
+| 14 | Two members of one pool: member A clicks **New proposal**, posts one. Member B opens the pool. | B sees it as Open, with "2 yes needed of 2" |
+| 15 | A votes Yes, then changes to No, then Yes. B votes Yes. | The count never goes above one vote each. After B's vote it shows **Passed**. |
+| 16 | A member opens the pool | No **Record payment** form and no **Reverse** buttons anywhere |
+| 17 | Admin (not a member) opens the same pool | Sees members, shares and payments. Has the **Record a confirmed payment** form. |
+| 18 | Admin records 2000 for member A with reference `TEST-1` | Payment shows in the ledger. A's share and the pool total go up. |
+| 19 | Admin records the same reference again, even with different case or spaces (`  test-1 `) | Refused: "already recorded". The total did not change. |
+| 20 | Admin clicks **Reverse** on that payment, with a reason | Original shows **Reversed** and struck through, a negative entry appears, the total is back to 0. Reverse is gone from both rows. |
+| 21 | Admin records the correct amount, 200, with reference `TEST-1-FIXED` | Total is 200. A's **Paid in** card shows $200. |
 
-Not covered by the UI, test in the AppSync console (Queries) signed in as the admin:
-
-```graphql
-# Record a confirmed contribution. This is the call an escrow webhook would make later.
-mutation { recordPoolContribution(poolId: "<pool id>", userId: "<member sub>", amount: 200, note: "test") { success error data } }
-```
-Expect `success: true`, and the member's share changes on the pool page. The same call as a normal user must return an authorization error.
-
-There is also no screen to create a vote, so voting cannot be tested from the UI yet.
+Test 18 to 21 change money records. Run them on `dev` with made up amounts. A real payment reference should come from escrow or the bank, never be invented.
 
 - [ ] **Confirm backups and log retention are really on.** These come from `infra/policy.ts`.
   ```bash
@@ -261,7 +261,8 @@ Then inspect the restored table, copy the needed items into the live table (a sc
 
 - No email to applicants or buyers. Status shows in the app only.
 - No way to revoke agent access in the app. Remove the group in Cognito by hand.
-- No screen to create a pool vote or record a contribution. Both exist in the API only.
+- Recording a payment is manual (admin types it in). Nothing receives escrow or bank notifications yet. A webhook can call the same API later.
+- No vote deadline, and a passed proposal triggers nothing. Votes are a record of the group's decision.
 - No payments. Pools track commitments, not money.
 - No AppSync request logging, and no backup of Cognito accounts.
 - Listing drafts and unpublish are not built. Deleting is permanent.

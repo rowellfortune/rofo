@@ -35,3 +35,15 @@ export const apiLeavePool = (poolId: string) =>
 
 export const apiVote = (poolId: string, proposalId: string, choice: 'yes' | 'no') =>
   transport.call<boolean>('votePoolProposal', Q.votePoolProposal, { poolId, proposalId, choice }, 'userPool');
+
+/** A member proposes a decision for the group to vote on. */
+export const apiCreateProposal = (poolId: string, input: { title: string; detail: string }) =>
+  transport.call<boolean>('createPoolProposal', Q.createPoolProposal, { poolId, input }, 'userPool');
+
+/** Admin: record a payment that escrow or the bank has confirmed. The reference makes retries safe. */
+export const apiRecordContribution = (poolId: string, p: { userId: string; amount: number; reference: string; note?: string }) =>
+  transport.call<boolean>('recordPoolContribution', Q.recordPoolContribution, { poolId, userId: p.userId, amount: p.amount, reference: p.reference, note: p.note || null }, 'userPool');
+
+/** Admin: undo a recorded payment. The original stays in the ledger, marked reversed. */
+export const apiReverseContribution = (poolId: string, entryId: string, reason: string) =>
+  transport.call<boolean>('reversePoolContribution', Q.reversePoolContribution, { poolId, entryId, reason }, 'userPool');

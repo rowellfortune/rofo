@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Ledger } from '../components/pool/Ledger';
+import { MyContributions } from '../components/pool/MyContributions';
+import { PaymentPanel } from '../components/pool/PaymentPanel';
+import { ProposalCard } from '../components/pool/ProposalCard';
+import { ProposalForm } from '../components/pool/ProposalForm';
 import { useListing } from '../hooks/useListings';
 import { formatPrice, placeholderImage } from '../lib/format';
-import { goalAmount, memberCount, monthsLeft, monthlyTotal, poolStatus, proposalView, raised, sharePct } from '../lib/pools';
+import { goalAmount, memberCount, monthsLeft, monthlyTotal, poolStatus, raised, sharePct } from '../lib/pools';
 import { usePools } from '../state/PoolsContext';
 
-/** One pool: progress, members and shares, ledger, votes. */
+/** One pool: progress, members and shares, votes, payments. */
 export function PoolDetail() {
   const { id } = useParams();
-  const { pools, meId, canSelfPay, needsAuth, loading, error, clearError, loadPool, joinPool, leavePool, contribute, vote } = usePools();
+  const {
+    pools, meId, canSelfPay, isAdmin, needsAuth, loading, error, clearError, loadPool,
+    joinPool, leavePool, contribute, vote, createProposal, recordContribution, reverseContribution,
+  } = usePools();
   const pool = pools.find((p) => p.id === id);
   const { data: listing } = useListing(pool?.listingId);
   const [monthly, setMonthly] = useState(200);
@@ -98,35 +106,19 @@ export function PoolDetail() {
               </table>
               <p className="muted small">Shares follow what each member has paid in. One member, one vote, whatever the share.</p>
 
-              <h2>Votes</h2>
-              {pool.proposals.length === 0 && <p className="muted">No open votes.</p>}
-              {pool.proposals.map((pr) => {
-                const v = proposalView(pool, pr, meId);
-                return (
-                  <div className="proposal" key={pr.id}>
-                    <strong>{pr.title}</strong>
-                    <p className="muted">{pr.detail}</p>
-                    <div className="pool-meta">
-                      <span>Yes {v.yes} · No {v.no} · Needs {v.needed} yes</span>
-                      <span>{v.status === 'PASSED' ? 'Passed' : v.status === 'REJECTED' ? 'Rejected' : 'Open'}</span>
-                    </div>
-                    {me && (
-                      <div className="vote-btns">
-                        <button className={`btn btn-ghost${v.myVote === 'yes' ? ' on' : ''}`} onClick={() => run(() => vote(pool.id, pr.id, 'yes'))}>Yes</button>
-                        <button className={`btn btn-ghost${v.myVote === 'no' ? ' on' : ''}`} onClick={() => run(() => vote(pool.id, pr.id, 'no'))}>No</button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              <div className="section-head votes-head">
+                <h2>Votes</h2>
+                {me && <ProposalForm onSubmit={(p) => createProposal(pool.id, p)} />}
+              </div>
+              {pool.proposals.length === 0 && <p className="muted">No proposals yet.{me ? ' Start one to put a decision to the group.' : ''}</p>}
+              {pool.proposals.map((pr) => (
+                <ProposalCard key={pr.id} pool={pool} proposal={pr} meId={meId} canVote={Boolean(me)} total={pool.members.length}
+                  onVote={(choice) => vote(pool.id, pr.id, choice)} />
+              ))}
 
-              <h2>Ledger</h2>
-              {pool.ledger.length === 0 && <p className="muted">No payments yet.</p>}
-              <ul className="ledger">
-                {pool.ledger.map((e) => (
-                  <li key={e.id}><span>{e.date}</span><span>{nameOf(e.memberId)}</span><span className="muted">{e.note}</span><strong>{formatPrice(e.amount, 'buy')}</strong></li>
-                ))}
-              </ul>
+              <h2>Payments</h2>
+              <Ledger entries={pool.ledger} nameOf={nameOf} canReverse={isAdmin}
+                onReverse={(entryId, reason) => reverseContribution(pool.id, entryId, reason)} />
             </>
           )}
         </div>
@@ -135,11 +127,11 @@ export function PoolDetail() {
           {me ? (
             <>
               <h3>You are in this pool</h3>
-              <p className="muted">Your share: <strong>{sharePct(pool, me).toFixed(1)}%</strong> · {formatPrice(me.monthly, 'buy')} per month</p>
+              <MyContributions me={me} share={sharePct(pool, me)} ledger={pool.ledger} />
               {canSelfPay ? (
                 <button className="btn btn-primary btn-lg btn-block" onClick={() => run(() => contribute(pool.id))}>Pay this month (demo)</button>
               ) : (
-                <p className="muted small">Contributions are confirmed through escrow and appear in the ledger once received.</p>
+                <p className="muted small">Payments are confirmed through escrow and appear under Payments once received.</p>
               )}
               {me.contributed === 0 && (
                 <button className="btn btn-ghost btn-block" onClick={() => run(() => leavePool(pool.id))}>Leave pool</button>
@@ -157,6 +149,11 @@ export function PoolDetail() {
             </>
           ) : (
             <p className="muted">This pool is full.</p>
+          )}
+
+          {isAdmin && !membersHidden && (
+            <PaymentPanel members={pool.members}
+              onRecord={async (p) => { try { await recordContribution(pool.id, p); } catch (e) { clearError(); throw e; } }} />
           )}
           <p className="notice small">{canSelfPay ? 'Demo only. ' : ''}Real pools need a signed co-ownership agreement, title held in an entity or trust, and escrow.</p>
         </aside>

@@ -116,7 +116,10 @@ type PoolLedgerEntry {
   userId: ID!
   amount: Float!
   note: String!
+  reference: String
   createdAt: AWSDateTime!
+  reversedAt: AWSDateTime
+  reversalOf: ID
 }
 
 type PoolProposal {
@@ -234,7 +237,8 @@ type Mutation {
   leavePool(poolId: ID!): BooleanResult @aws_cognito_user_pools
   createPoolProposal(poolId: ID!, input: PoolProposalInput!): BooleanResult @aws_cognito_user_pools
   votePoolProposal(poolId: ID!, proposalId: ID!, choice: String!): BooleanResult @aws_cognito_user_pools
-  recordPoolContribution(poolId: ID!, userId: ID!, amount: Float!, note: String): BooleanResult @aws_cognito_user_pools(cognito_groups: ["Admin"])
+  recordPoolContribution(poolId: ID!, userId: ID!, amount: Float!, reference: String!, note: String): BooleanResult @aws_cognito_user_pools(cognito_groups: ["Admin"])
+  reversePoolContribution(poolId: ID!, entryId: ID!, reason: String!): BooleanResult @aws_cognito_user_pools(cognito_groups: ["Admin"])
 }
 
 schema { query: Query mutation: Mutation }

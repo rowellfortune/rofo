@@ -65,7 +65,7 @@ const dataSource = new aws.appsync.DataSource('GraphqlLambda', {
 const fields: Record<'Query' | 'Mutation', string[]> = {
   Query: ['getListing', 'searchListings', 'myListings', 'myFavorites', 'listingInquiries', 'myAgentApplication', 'agentApplications', 'geocodeAddress', 'listPools', 'getPool', 'myPools'],
   Mutation: ['createListing', 'updateListing', 'deleteListing', 'toggleFavorite', 'sendInquiry', 'submitAgentApplication', 'reviewAgentApplication',
-    'createPool', 'joinPool', 'leavePool', 'createPoolProposal', 'votePoolProposal', 'recordPoolContribution'],
+    'createPool', 'joinPool', 'leavePool', 'createPoolProposal', 'votePoolProposal', 'recordPoolContribution', 'reversePoolContribution'],
 };
 (Object.entries(fields) as ['Query' | 'Mutation', string[]][]).forEach(([type, names]) => {
   names.forEach((field) => {

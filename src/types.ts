@@ -58,9 +58,12 @@ export interface PoolMember {
 export interface LedgerEntry {
   id: string;
   memberId: string;
-  amount: number;
+  amount: number; // negative for a reversal
   date: string;
   note: string;
+  reference?: string | null; // escrow or bank reference
+  reversedAt?: string | null; // set on a payment that was undone
+  reversalOf?: string | null; // set on the entry that undoes another
 }
 
 /** A decision the group votes on. One member, one vote. */

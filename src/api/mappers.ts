@@ -15,7 +15,10 @@ export interface ApiPool {
   maxMembers: number; memberCount: number; targetMonths: number; status: string; creatorId: string;
   createdAt: string; viewerIsMember?: boolean | null;
   members: { userId: string; name: string; monthly: number; contributed: number; sharePct: number; joinedAt: string }[];
-  ledger: { id: string; userId: string; amount: number; note: string; createdAt: string }[];
+  ledger: {
+    id: string; userId: string; amount: number; note: string; createdAt: string;
+    reference?: string | null; reversedAt?: string | null; reversalOf?: string | null;
+  }[];
   proposals: {
     id: string; title: string; detail: string; createdBy: string; createdAt: string;
     yes: number; no: number; needed: number; status: string; myVote?: string | null;
@@ -60,6 +63,7 @@ export function toPool(a: ApiPool): Pool {
     })),
     ledger: a.ledger.map((e) => ({
       id: e.id, memberId: e.userId, amount: e.amount, date: e.createdAt.slice(0, 10), note: e.note,
+      reference: e.reference ?? null, reversedAt: e.reversedAt ?? null, reversalOf: e.reversalOf ?? null,
     })),
     proposals: a.proposals.map((p) => ({
       id: p.id, title: p.title, detail: p.detail, votes: {},

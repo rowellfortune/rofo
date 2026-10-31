@@ -25,6 +25,7 @@ function cond(item: Item | undefined, expr: string | undefined, vals: Record<str
     if ((m = c.match(/^attribute_not_exists\((\w+)\)$/))) return !item || item[m[1]] === undefined;
     if ((m = c.match(/^attribute_exists\((\w+)\)$/))) return !!item && item[m[1]] !== undefined;
     if ((m = c.match(/^(\w+) < (\w+)$/))) return item![m[1]] < item![m[2]];
+    if ((m = c.match(/^(\w+) >= (:\w+)$/))) return !!item && item[m[1]] >= vals[m[2]];
     if ((m = c.match(/^(\w+) > (:\w+)$/))) return item![m[1]] > vals[m[2]];
     if ((m = c.match(/^(\w+) = (:\w+)$/))) return item![m[1]] === vals[m[2]];
     throw new Error(`fake: unsupported condition ${c}`);
@@ -48,20 +49,27 @@ function cond(item: Item | undefined, expr: string | undefined, vals: Record<str
     return { Items: i.Limit ? rows.slice(0, i.Limit) : rows };
   }
   if (name === 'TransactWriteCommand') {
+    const reasons: { Code: string }[] = [];
+    let failed = false;
     for (const t of i.TransactItems) { // check every condition first, apply nothing on failure
       const op = t.Put ?? t.Update ?? t.Delete;
       const key = t.Put ? { pk: t.Put.Item.pk, sk: t.Put.Item.sk } : op.Key;
-      if (!cond(store.get(k(key)), op.ConditionExpression, op.ExpressionAttributeValues)) {
-        const e = new Error('cancelled'); e.name = 'TransactionCanceledException'; throw e;
-      }
+      const ok = cond(store.get(k(key)), op.ConditionExpression, op.ExpressionAttributeValues);
+      reasons.push({ Code: ok ? 'None' : 'ConditionalCheckFailed' });
+      if (!ok) failed = true;
+    }
+    if (failed) {
+      const e: any = new Error('cancelled'); e.name = 'TransactionCanceledException'; e.CancellationReasons = reasons; throw e;
     }
     for (const t of i.TransactItems) {
       if (t.Put) store.set(k(t.Put.Item), { ...t.Put.Item });
       else if (t.Delete) store.delete(k(t.Delete.Key));
       else {
         const it = store.get(k(t.Update.Key))!; const v = t.Update.ExpressionAttributeValues;
-        const m = t.Update.UpdateExpression.match(/^SET (\w+) = \1 ([+-]) (:\w+)$/)!;
-        it[m[1]] += (m[2] === '+' ? 1 : -1) * v[m[3]];
+        const expr: string = t.Update.UpdateExpression;
+        const arith = expr.match(/^SET (\w+) = \1 ([+-]) (:\w+)$/);
+        if (arith) it[arith[1]] += (arith[2] === '+' ? 1 : -1) * v[arith[3]];
+        else for (const part of expr.replace(/^SET /, '').split(', ')) { const [lhs, rhs] = part.split(' = '); it[lhs] = v[rhs]; }
       }
     }
     return {};
@@ -84,10 +92,10 @@ test('pool lifecycle', async () => {
   await assert.rejects(P.joinPool(D, pool.id, 100), /full/); // seat limit holds
   await assert.rejects(P.joinPool(B, pool.id, 100), /already joined/); // no double join
 
-  await assert.rejects(P.recordContribution(A, pool.id, 'a', 5000), /Not allowed/); // members cannot credit themselves
-  await P.recordContribution(ADMIN, pool.id, 'a', 6000, 'escrow ref 1');
-  await P.recordContribution(ADMIN, pool.id, 'b', 2000);
-  await assert.rejects(P.recordContribution(ADMIN, pool.id, 'zz', 100), /not found/); // unknown member
+  await assert.rejects(P.recordContribution(A, pool.id, 'a', 5000, 'ref-x'), /Not allowed/); // members cannot credit themselves
+  await P.recordContribution(ADMIN, pool.id, 'a', 6000, 'escrow-001', 'first payment');
+  await P.recordContribution(ADMIN, pool.id, 'b', 2000, 'escrow-002');
+  await assert.rejects(P.recordContribution(ADMIN, pool.id, 'zz', 100, 'escrow-003'), /not found/); // unknown member
 
   await assert.rejects(P.leavePool(B, pool.id), /paid in/); // cannot leave after paying
   await assert.rejects(P.leavePool(A, pool.id), /creator/);
@@ -119,4 +127,85 @@ test('pool lifecycle', async () => {
   assert.equal((await P.listPools({ listingId: 'other' })).items.length, 0);
   assert.equal((await P.myPools(A)).length, 1);
   assert.equal((await P.myPools(C)).length, 0); // left, so no longer listed
+});
+
+/** A pool with two members, ready for payment tests. */
+async function poolWithTwo() {
+  store.clear();
+  store.set(k(listingKey(LISTING)), { ...listingKey(LISTING), id: LISTING, deal: 'buy', price: 100000, agentId: 'agent' }); // clear() also wiped the listing
+  const pool = await P.createPool(A, { name: 'Pay Pool', listingId: LISTING, maxMembers: 3, targetMonths: 24, monthly: 200 });
+  await P.joinPool(B, pool.id, 200);
+  return pool;
+}
+
+test('the same payment reference cannot be recorded twice', async () => {
+  const pool = await poolWithTwo();
+  await P.recordContribution(ADMIN, pool.id, 'a', 500, 'BANK-7781');
+  await assert.rejects(P.recordContribution(ADMIN, pool.id, 'a', 500, 'BANK-7781'), /already recorded/); // double click
+  await assert.rejects(P.recordContribution(ADMIN, pool.id, 'b', 500, '  bank-7781 '), /already recorded/); // case and spaces do not dodge it
+  const view = await P.getPool(A, pool.id);
+  assert.equal(view.raised, 500); // credited once
+  assert.equal(view.ledger.length, 1);
+  await P.recordContribution(ADMIN, pool.id, 'b', 500, 'BANK-7782'); // a different reference is fine
+  assert.equal((await P.getPool(A, pool.id)).raised, 1000);
+});
+
+test('a failed payment leaves no trace, and bad input is refused before any write', async () => {
+  const pool = await poolWithTwo();
+  await assert.rejects(P.recordContribution(ADMIN, pool.id, 'nobody', 100, 'REF-1'), /not found/);
+  // the reference must not stay reserved after the failure, so the right member can use it
+  await P.recordContribution(ADMIN, pool.id, 'a', 100, 'REF-1');
+  assert.equal((await P.getPool(A, pool.id)).raised, 100);
+
+  for (const [amount, ref, msg] of [[0, 'REF-2', /amount/], [-5, 'REF-2', /amount/], [20_000_000, 'REF-2', /amount/], [10, 'x', /reference/], [10, '', /reference/]] as const) {
+    await assert.rejects(P.recordContribution(ADMIN, pool.id, 'a', amount, ref), msg);
+  }
+  assert.equal((await P.getPool(A, pool.id)).raised, 100); // nothing leaked in
+});
+
+test('reversing a payment restores balances, keeps the history, and works once', async () => {
+  const pool = await poolWithTwo();
+  await P.recordContribution(ADMIN, pool.id, 'a', 2000, 'TYPO-1', 'meant 200');
+  await assert.rejects(P.reverseContribution(A, pool.id, 'x', 'because I said so'), /Not allowed/); // a member cannot undo payments
+  const entryId = (await P.getPool(ADMIN, pool.id)).ledger[0] as any;
+  await assert.rejects(P.reverseContribution(ADMIN, pool.id, entryId.id, 'no'), /reason/);
+  await assert.rejects(P.reverseContribution(ADMIN, pool.id, 'missing', 'wrong amount entered'), /not found/);
+
+  await P.reverseContribution(ADMIN, pool.id, entryId.id, 'wrong amount entered');
+  let view = await P.getPool(A, pool.id);
+  assert.equal(view.raised, 0);
+  assert.equal((view.members as any[]).find((m) => m.userId === 'a').contributed, 0);
+  assert.equal(view.ledger.length, 2); // nothing deleted
+  const [reversal, original] = view.ledger as any[];
+  assert.deepEqual([reversal.amount, reversal.reversalOf, original.amount], [-2000, original.id, 2000]);
+  assert.ok(original.reversedAt); // the original shows as reversed
+
+  await assert.rejects(P.reverseContribution(ADMIN, pool.id, original.id, 'trying twice'), /already reversed/);
+  await assert.rejects(P.reverseContribution(ADMIN, pool.id, reversal.id, 'undo the undo'), /cannot be reversed/);
+  assert.equal((await P.getPool(A, pool.id)).raised, 0); // still zero, not negative
+
+  // the correct amount can now be recorded with a fresh reference
+  await P.recordContribution(ADMIN, pool.id, 'a', 200, 'TYPO-1-FIXED');
+  view = await P.getPool(A, pool.id);
+  assert.equal(view.raised, 200);
+});
+
+test('a payment cannot be reversed below zero', async () => {
+  const pool = await poolWithTwo();
+  await P.recordContribution(ADMIN, pool.id, 'a', 300, 'R-A');
+  const id = ((await P.getPool(ADMIN, pool.id)).ledger[0] as any).id;
+  // simulate the member balance dropping below the payment (for example by a data fix)
+  for (const it of store.values()) if (it.sk === 'MEMBER#a') it.contributed = 100;
+  await assert.rejects(P.reverseContribution(ADMIN, pool.id, id, 'balance check'), /balance is lower/);
+  assert.equal((await P.getPool(ADMIN, pool.id)).ledger.length, 1); // refused whole, no half applied
+});
+
+test('admins can see a full pool without joining it, other outsiders cannot', async () => {
+  const pool = await poolWithTwo();
+  await P.recordContribution(ADMIN, pool.id, 'a', 100, 'R-1');
+  const asAdmin = await P.getPool(ADMIN, pool.id);
+  assert.equal(asAdmin.viewerIsMember, false); // not a member
+  assert.deepEqual([asAdmin.members.length, asAdmin.ledger.length], [2, 1]); // but sees the operating data
+  const asOutsider = await P.getPool(D, pool.id);
+  assert.deepEqual([asOutsider.members.length, asOutsider.ledger.length], [0, 0]);
 });

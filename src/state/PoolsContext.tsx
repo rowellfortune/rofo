@@ -2,7 +2,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { Pool } from '../types';
 import { seedPools } from '../data/pools';
 import { apiEnabled } from '../api/config';
-import { apiCreatePool, apiGetPool, apiJoinPool, apiLeavePool, apiListPools, apiMyPools, apiVote } from '../api/pools';
+import {
+  apiCreatePool, apiCreateProposal, apiGetPool, apiJoinPool, apiLeavePool, apiListPools, apiMyPools, apiRecordContribution,
+  apiReverseContribution, apiVote,
+} from '../api/pools';
+import { isAdmin as inAdminGroup } from '../components/RequireAgent';
 import { useAuth } from './AuthContext';
 
 /** The demo user. API mode uses the Cognito user id instead. */
@@ -20,6 +24,8 @@ interface PoolsApi {
   meId: string | null;
   /** Demo only. Real contributions are confirmed by escrow, so members cannot pay themselves. */
   canSelfPay: boolean;
+  /** True for admins (API mode). They record and reverse payments. */
+  isAdmin: boolean;
   /** Fetch one pool in full (members, ledger, votes). No-op in demo mode. */
   loadPool: (id: string) => Promise<void>;
   createPool: (p: { name: string; listingId: string; maxMembers: number; targetMonths: number; monthly: number }) => Promise<string>;
@@ -27,6 +33,11 @@ interface PoolsApi {
   leavePool: (poolId: string) => Promise<void>;
   contribute: (poolId: string) => Promise<void>;
   vote: (poolId: string, proposalId: string, choice: 'yes' | 'no') => Promise<void>;
+  createProposal: (poolId: string, p: { title: string; detail: string }) => Promise<void>;
+  /** Admin: record a confirmed payment. Not available in demo mode. */
+  recordContribution: (poolId: string, p: { userId: string; amount: number; reference: string; note?: string }) => Promise<void>;
+  /** Admin: reverse a recorded payment. Not available in demo mode. */
+  reverseContribution: (poolId: string, entryId: string, reason: string) => Promise<void>;
 }
 
 const Ctx = createContext<PoolsApi | null>(null);
@@ -54,7 +65,7 @@ function DemoPools({ children }: { children: ReactNode }) {
   }, []);
 
   const api = useMemo<PoolsApi>(() => ({
-    pools, loading: false, error: null, clearError: () => {}, needsAuth: false, meId: ME.id, canSelfPay: true,
+    pools, loading: false, error: null, clearError: () => {}, needsAuth: false, meId: ME.id, canSelfPay: true, isAdmin: false,
     loadPool: async () => {},
     createPool: async ({ name, listingId, maxMembers, targetMonths, monthly }) => {
       const id = `p${Date.now()}`;
@@ -89,6 +100,12 @@ function DemoPools({ children }: { children: ReactNode }) {
       if (!p.members.some((m) => m.id === ME.id)) return p;
       return { ...p, proposals: p.proposals.map((pr) => (pr.id === proposalId ? { ...pr, votes: { ...pr.votes, [ME.id]: choice } } : pr)) };
     }),
+    createProposal: async (poolId, { title, detail }) => patch(poolId, (p) => {
+      if (!p.members.some((m) => m.id === ME.id)) return p;
+      return { ...p, proposals: [{ id: `pr${Date.now()}`, title, detail, votes: {} }, ...p.proposals] };
+    }),
+    recordContribution: async () => { throw new Error('Recording payments needs the live backend.'); },
+    reverseContribution: async () => { throw new Error('Reversing payments needs the live backend.'); },
   }), [pools, patch]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
@@ -99,6 +116,7 @@ function DemoPools({ children }: { children: ReactNode }) {
 /** Pools from AppSync. Needs a signed-in user (the pool queries are Cognito only). */
 function ApiPools({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const admin = inAdminGroup(user?.groups);
   const [byId, setById] = useState<Record<string, Pool>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -141,14 +159,17 @@ function ApiPools({ children }: { children: ReactNode }) {
 
   const api = useMemo<PoolsApi>(() => ({
     pools: Object.values(byId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    loading, error, clearError: () => setError(null), needsAuth: !sub, meId: sub, canSelfPay: false,
+    loading, error, clearError: () => setError(null), needsAuth: !sub, meId: sub, canSelfPay: false, isAdmin: admin,
     loadPool,
     createPool: (input) => act(async () => { const id = await apiCreatePool(input); await loadPool(id); return id; }),
     joinPool: (id, monthly) => act(async () => { await apiJoinPool(id, monthly); await loadPool(id); }),
     leavePool: (id) => act(async () => { await apiLeavePool(id); await loadPool(id); }),
     contribute: () => act(async () => { throw new Error('Contributions are confirmed through escrow, not from the app.'); }),
     vote: (id, proposalId, choice) => act(async () => { await apiVote(id, proposalId, choice); await loadPool(id); }),
-  }), [byId, loading, error, sub, loadPool, act]);
+    createProposal: (id, p) => act(async () => { await apiCreateProposal(id, p); await loadPool(id); }),
+    recordContribution: (id, p) => act(async () => { await apiRecordContribution(id, p); await loadPool(id); }),
+    reverseContribution: (id, entryId, reason) => act(async () => { await apiReverseContribution(id, entryId, reason); await loadPool(id); }),
+  }), [byId, loading, error, sub, admin, loadPool, act]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

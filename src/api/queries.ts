@@ -6,7 +6,7 @@ const LISTING = `id deal type title address city country price beds baths areaM2
 const POOL = `id name listingId listingPrice goal raised maxMembers memberCount targetMonths status
   creatorId createdAt viewerIsMember
   members { userId name monthly contributed sharePct joinedAt }
-  ledger { id userId amount note createdAt }
+  ledger { id userId amount note reference createdAt reversedAt reversalOf }
   proposals { id title detail createdBy createdAt yes no needed status myVote }`;
 
 const APPLICATION = `userId email name agency phone registrationNo country website about status reviewNote createdAt updatedAt reviewedAt`;
@@ -38,6 +38,11 @@ export const Q = {
   myPools: `query Mine { myPools { success error data { ${POOL} } } }`,
   getPool: `query Pool($id: ID!) { getPool(id: $id) { success error data { ${POOL} } } }`,
   createPool: `mutation Create($input: CreatePoolInput!) { createPool(input: $input) { success error data { id } } }`,
+  createPoolProposal: `mutation Prop($poolId: ID!, $input: PoolProposalInput!) { createPoolProposal(poolId: $poolId, input: $input) { success error data } }`,
+  recordPoolContribution: `mutation Pay($poolId: ID!, $userId: ID!, $amount: Float!, $reference: String!, $note: String) {
+    recordPoolContribution(poolId: $poolId, userId: $userId, amount: $amount, reference: $reference, note: $note) { success error data } }`,
+  reversePoolContribution: `mutation Rev($poolId: ID!, $entryId: ID!, $reason: String!) {
+    reversePoolContribution(poolId: $poolId, entryId: $entryId, reason: $reason) { success error data } }`,
   joinPool: `mutation Join($poolId: ID!, $monthly: Float!) { joinPool(poolId: $poolId, monthly: $monthly) { success error data } }`,
   leavePool: `mutation Leave($poolId: ID!) { leavePool(poolId: $poolId) { success error data } }`,
   votePoolProposal: `mutation Vote($poolId: ID!, $proposalId: ID!, $choice: String!) {

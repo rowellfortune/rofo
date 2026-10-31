@@ -173,29 +173,83 @@ export async function leavePool(caller: Caller, poolId: string) {
   return true;
 }
 
+/** Cancellation reasons DynamoDB attaches to a failed transaction, one per item, in order. */
+const reasons = (err: unknown): { Code?: string }[] => (err as { CancellationReasons?: { Code?: string }[] })?.CancellationReasons ?? [];
+
+const Payment = z.object({
+  amount: z.number().positive().max(10_000_000),
+  // Escrow receipt, bank transfer id or payment provider transaction id. Required so every credit can be traced.
+  reference: z.string().trim().min(3).max(80),
+  note: z.string().trim().max(120).nullish(),
+});
+
 /**
  * Record a CONFIRMED payment. Admin only on purpose: members must never be able
  * to credit themselves. In production this is called by the escrow or payment
  * provider webhook after funds are confirmed, not by the browser.
+ *
+ * The reference makes it safe to retry: the same reference can only be recorded once per pool,
+ * so a double click or a webhook retry cannot credit the money twice.
  */
 export async function recordContribution(
-  caller: Caller, poolId: string, userId: string, amount: number, note?: string | null,
+  caller: Caller, poolId: string, userId: string, amount: number, reference: string, note?: string | null,
 ) {
   if (!caller.groups.includes('Admin')) throw new AppError('Not allowed', 403);
-  if (!(amount > 0) || amount > 10_000_000) throw new AppError('Invalid amount', 400);
+  const r = Payment.safeParse({ amount, reference, note });
+  if (!r.success) throw new AppError(r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '), 400);
+  const ref = r.data.reference.toLowerCase();
   const now = new Date().toISOString();
   const entryId = randomUUID();
 
   try {
     await ddb.send(new TransactWriteCommand({
       TransactItems: [
-        { Update: { TableName: TABLE(), Key: memberKey(poolId, userId), UpdateExpression: 'SET contributed = contributed + :a', ConditionExpression: 'attribute_exists(pk)', ExpressionAttributeValues: { ':a': amount } } },
-        { Update: { TableName: TABLE(), Key: poolKey(poolId), UpdateExpression: 'SET raised = raised + :a', ConditionExpression: 'attribute_exists(pk) AND attribute_not_exists(closed)', ExpressionAttributeValues: { ':a': amount } } },
-        { Put: { TableName: TABLE(), Item: { pk: `POOL#${poolId}`, sk: `LEDGER#${now}#${entryId}`, entity: 'POOL_LEDGER', id: entryId, poolId, userId, amount, note: note?.slice(0, 120) || 'Contribution', recordedBy: caller.sub, createdAt: now } } },
+        { Update: { TableName: TABLE(), Key: memberKey(poolId, userId), UpdateExpression: 'SET contributed = contributed + :a', ConditionExpression: 'attribute_exists(pk)', ExpressionAttributeValues: { ':a': r.data.amount } } },
+        { Update: { TableName: TABLE(), Key: poolKey(poolId), UpdateExpression: 'SET raised = raised + :a', ConditionExpression: 'attribute_exists(pk) AND attribute_not_exists(closed)', ExpressionAttributeValues: { ':a': r.data.amount } } },
+        { Put: { TableName: TABLE(), Item: { pk: `POOL#${poolId}`, sk: `LEDGER#${now}#${entryId}`, entity: 'POOL_LEDGER', id: entryId, poolId, userId, amount: r.data.amount, reference: r.data.reference, note: r.data.note || 'Contribution', recordedBy: caller.sub, createdAt: now } } },
+        // The reference marker. If it already exists the whole transaction is refused.
+        { Put: { TableName: TABLE(), Item: { pk: `POOL#${poolId}`, sk: `REF#${ref}`, entity: 'POOL_REF', entryId, createdAt: now }, ConditionExpression: 'attribute_not_exists(pk)' } },
       ],
     }));
   } catch (err) {
-    if (isConflict(err)) throw new AppError('Member or open pool not found', 404);
+    if (isConflict(err)) {
+      if (reasons(err)[3]?.Code === 'ConditionalCheckFailed') throw new AppError('A payment with this reference was already recorded', 409);
+      throw new AppError('Member or open pool not found', 404);
+    }
+    throw err;
+  }
+  return true;
+}
+
+/**
+ * Undo a recorded payment. Admin only. The ledger is append-only, so nothing is deleted:
+ * the original is marked reversed and a matching negative entry is added.
+ * One payment can be reversed once, and only while the member still holds at least that much.
+ */
+export async function reverseContribution(caller: Caller, poolId: string, entryId: string, reason: string) {
+  if (!caller.groups.includes('Admin')) throw new AppError('Not allowed', 403);
+  const why = (reason ?? '').trim();
+  if (why.length < 5) throw new AppError('Give a short reason for the reversal', 400);
+
+  const rows = await queryPartition(`POOL#${poolId}`);
+  const entry = rows.find((i) => i.sk.startsWith('LEDGER#') && i.id === entryId);
+  if (!entry) throw new AppError('Payment not found', 404);
+  if (entry.amount <= 0 || entry.reversalOf) throw new AppError('A reversal cannot be reversed', 400);
+  if (entry.reversedAt) throw new AppError('This payment was already reversed', 409);
+
+  const now = new Date().toISOString();
+  const revId = randomUUID();
+  try {
+    await ddb.send(new TransactWriteCommand({
+      TransactItems: [
+        { Update: { TableName: TABLE(), Key: { pk: entry.pk, sk: entry.sk }, UpdateExpression: 'SET reversedAt = :at, reversedBy = :by', ConditionExpression: 'attribute_not_exists(reversedAt)', ExpressionAttributeValues: { ':at': now, ':by': caller.sub } } },
+        { Update: { TableName: TABLE(), Key: memberKey(poolId, entry.userId), UpdateExpression: 'SET contributed = contributed - :a', ConditionExpression: 'contributed >= :a', ExpressionAttributeValues: { ':a': entry.amount } } },
+        { Update: { TableName: TABLE(), Key: poolKey(poolId), UpdateExpression: 'SET raised = raised - :a', ConditionExpression: 'raised >= :a', ExpressionAttributeValues: { ':a': entry.amount } } },
+        { Put: { TableName: TABLE(), Item: { pk: `POOL#${poolId}`, sk: `LEDGER#${now}#${revId}`, entity: 'POOL_LEDGER', id: revId, poolId, userId: entry.userId, amount: -entry.amount, reference: `reversal of ${entry.reference ?? entry.id}`, reversalOf: entry.id, note: why.slice(0, 120), recordedBy: caller.sub, createdAt: now } } },
+      ],
+    }));
+  } catch (err) {
+    if (isConflict(err)) throw new AppError('Could not reverse. It may already be reversed, or the member balance is lower than the payment.', 409);
     throw err;
   }
   return true;
@@ -244,7 +298,8 @@ export async function getPool(caller: Caller, id: string) {
   const members = items.filter((i) => i.sk.startsWith('MEMBER#'));
   const isMember = members.some((m) => m.userId === caller.sub);
   out.viewerIsMember = isMember;
-  if (!isMember) return out;
+  // Members see their own pool. Admins also see it, because they record and reverse payments.
+  if (!isMember && !caller.groups.includes('Admin')) return out;
 
   const total = members.reduce((s, m) => s + m.contributed, 0);
   out.members = members.map((m) => ({
@@ -255,7 +310,10 @@ export async function getPool(caller: Caller, id: string) {
 
   out.ledger = items.filter((i) => i.sk.startsWith('LEDGER#'))
     .sort((a, b) => b.sk.localeCompare(a.sk)).slice(0, 100)
-    .map((e) => ({ id: e.id, userId: e.userId, amount: e.amount, note: e.note, createdAt: e.createdAt }));
+    .map((e) => ({
+      id: e.id, userId: e.userId, amount: e.amount, note: e.note, createdAt: e.createdAt,
+      reference: e.reference ?? null, reversedAt: e.reversedAt ?? null, reversalOf: e.reversalOf ?? null,
+    }));
 
   const votes = items.filter((i) => i.sk.startsWith('VOTE#'));
   const needed = quorum(meta.memberCount);
