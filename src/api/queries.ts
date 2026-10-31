@@ -24,6 +24,8 @@ export const Q = {
   listingInquiries: `query Inq($listingId: ID!) { listingInquiries(listingId: $listingId) {
     success error data { id listingId name email message createdAt } } }`,
 
+  geocodeAddress: `query Geo($query: String!) { geocodeAddress(query: $query) { success error data { label lat lng city country } } }`,
+
   listPools: `query Pools($listingId: ID) { listPools(listingId: $listingId, limit: 50) {
     success error data { items { ${POOL} } } } }`,
   myPools: `query Mine { myPools { success error data { ${POOL} } } }`,

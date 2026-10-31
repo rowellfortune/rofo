@@ -276,3 +276,9 @@ p { margin: 0 0 1rem; }
 @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } .dash-table { display: block; overflow-x: auto; } }
 .form-card .check, .check { flex-direction: row; align-items: center; gap: .5rem; }
 .check input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--primary); }
+
+.geo-row { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.places-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line-2); border-radius: var(--radius); overflow: hidden; background: var(--surface-2); }
+.places-list li + li { border-top: 1px solid var(--line); }
+.places-list button { display: flex; flex-direction: column; align-items: flex-start; gap: .1rem; width: 100%; text-align: left; border: 0; background: transparent; color: var(--ink); font: inherit; padding: .65rem .9rem; cursor: pointer; }
+.places-list button:hover, .places-list button:focus-visible { background: var(--line); }

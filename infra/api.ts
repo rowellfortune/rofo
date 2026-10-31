@@ -7,11 +7,19 @@ const region = aws.getRegionOutput().name;
 
 // ---------- GraphQL (AppSync) ----------
 
+/**
+ * Optional MapTiler key for address search. Leave empty to use keyless Nominatim.
+ * Production: `npx sst secret set MapTilerKey <key> --stage production`.
+ */
+export const mapTilerKey = new sst.Secret('MapTilerKey', '');
+
 /** One Lambda serves every field. It switches on info.fieldName. */
 const resolverFn = new sst.aws.Function('GraphqlResolver', {
   handler: 'backend/graphql/handler.handler',
-  link: [table],
+  link: [table, mapTilerKey],
   timeout: '15 seconds',
+  // Nominatim asks apps to identify themselves. Set a real contact for production.
+  environment: { GEOCODE_USER_AGENT: process.env.GEOCODE_USER_AGENT ?? 'rofo-estate/1.0' },
 });
 
 export const graphql = new aws.appsync.GraphQLApi('Graphql', {
@@ -50,7 +58,7 @@ const dataSource = new aws.appsync.DataSource('GraphqlLambda', {
 
 // Direct Lambda resolvers (no VTL). Field list must match schema.graphql.
 const fields: Record<'Query' | 'Mutation', string[]> = {
-  Query: ['getListing', 'searchListings', 'myListings', 'myFavorites', 'listingInquiries', 'listPools', 'getPool', 'myPools'],
+  Query: ['getListing', 'searchListings', 'myListings', 'myFavorites', 'listingInquiries', 'geocodeAddress', 'listPools', 'getPool', 'myPools'],
   Mutation: ['createListing', 'updateListing', 'deleteListing', 'toggleFavorite', 'sendInquiry',
     'createPool', 'joinPool', 'leavePool', 'createPoolProposal', 'votePoolProposal', 'recordPoolContribution'],
 };

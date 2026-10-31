@@ -4,11 +4,11 @@
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { apiCreateListing, apiDeleteListing, apiListingInquiries, apiMyListings, apiUpdateListing } from '../src/api/agent';
+import { apiCreateListing, apiDeleteListing, apiGeocode, apiListingInquiries, apiMyListings, apiUpdateListing } from '../src/api/agent';
 import { apiGetListing } from '../src/api/listings';
 import { transport } from '../src/api/transport';
 import { checkImage, uploadImage, type UploadDeps } from '../src/api/upload';
-import { buildListingInput, emptyForm, listingToForm, type ListingForm } from '../src/lib/listingForm';
+import { applyCandidate, buildListingInput, emptyForm, geocodeQuery, listingToForm, type ListingForm } from '../src/lib/listingForm';
 import type { ApiListing } from '../src/api/mappers';
 import { toListing } from '../src/api/mappers';
 
@@ -138,4 +138,38 @@ test('agent API calls use the signed-in (userPool) mode and clear the read cache
 
   assert.ok(log.filter((c) => c.field !== 'getListing').every((c) => c.mode === 'userPool'));
   assert.deepEqual(log.find((c) => c.field === 'updateListing')!.vars.id, 'L1');
+});
+
+test('geocode query joins the address parts and needs a street', () => {
+  assert.equal(geocodeQuery({ address: 'Gravenstraat 48', city: ' Paramaribo ', country: 'Suriname' }), 'Gravenstraat 48, Paramaribo, Suriname');
+  assert.equal(geocodeQuery({ address: 'Gravenstraat 48', city: '', country: '' }), 'Gravenstraat 48'); // blanks skipped
+  assert.equal(geocodeQuery({ address: 'ab', city: 'Paramaribo', country: 'Suriname' }), null); // too short to search
+});
+
+test('choosing a place sets the pin and fills only blank city and country', () => {
+  const place = { label: 'x', lat: 5.823912345, lng: -55.167812345, city: 'Paramaribo', country: 'Suriname' };
+
+  const blank = applyCandidate(valid({ city: '', country: '' }), place);
+  assert.deepEqual([blank.lat, blank.lng, blank.city, blank.country], ['5.82391', '-55.16781', 'Paramaribo', 'Suriname']); // 5 decimals
+
+  const typed = applyCandidate(valid({ city: 'Pbo', country: 'SR' }), place);
+  assert.deepEqual([typed.city, typed.country], ['Pbo', 'SR']); // the agent's wording is kept
+
+  const noMeta = applyCandidate(valid({ city: '', country: '' }), { ...place, city: null, country: null });
+  assert.deepEqual([noMeta.city, noMeta.country], ['', '']); // null does not become the text "null"
+
+  // the result still passes validation once the rest is filled in
+  const built = buildListingInput(applyCandidate(valid(), place));
+  assert.ok(built.ok && built.input.lat === 5.82391);
+});
+
+test('apiGeocode asks as a signed in user and tolerates a null list', async () => {
+  const seen: { field: string; mode: string; vars: Record<string, unknown> }[] = [];
+  transport.call = (async (field: string, _q: string, vars: Record<string, unknown>, mode: string) => {
+    seen.push({ field, mode, vars });
+    return vars.query === 'empty' ? null : [{ label: 'A', lat: 1, lng: 2, city: null, country: null }];
+  }) as unknown as typeof transport.call;
+  assert.equal((await apiGeocode('Some street 1')).length, 1);
+  assert.deepEqual(await apiGeocode('empty'), []);
+  assert.ok(seen.every((c) => c.field === 'geocodeAddress' && c.mode === 'userPool'));
 });

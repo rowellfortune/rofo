@@ -4,8 +4,15 @@ import { GraphqlUtil, getCaller, requireGroup } from '../utils/GraphqlUtil';
 import * as L from '../lib/listings';
 import * as Q from '../lib/inquiries';
 import * as P from '../lib/pools';
+import { geocode } from '../lib/geocode';
+import { Resource } from 'sst';
 
 const AGENT_GROUPS = ['Agent', 'Admin'];
+
+/** MapTiler key from the SST secret. Empty string means use the keyless Nominatim provider. */
+const mapTilerKey = (): string => {
+  try { return Resource.MapTilerKey.value; } catch { return ''; }
+};
 
 /** Route one AppSync field to its function. Each branch re-checks groups (defence in depth). */
 async function route(event: AppSyncResolverEvent<any>) {
@@ -51,6 +58,17 @@ async function route(event: AppSyncResolverEvent<any>) {
       return L.toggleFavorite(getCaller(event), args.listingId);
     case 'sendInquiry':
       return Q.sendInquiry(getCaller(event), args.input);
+
+    // Address search for the listing editor (agents only). The key stays on the server.
+    case 'geocodeAddress': {
+      const c = getCaller(event); requireGroup(c, AGENT_GROUPS);
+      return geocode(args.query, {
+        fetch,
+        apiKey: mapTilerKey(),
+        userAgent: process.env.GEOCODE_USER_AGENT ?? 'rofo-estate/1.0',
+        now: Date.now,
+      });
+    }
 
     // Pools (any signed-in user; the lib checks membership and Admin)
     case 'listPools':

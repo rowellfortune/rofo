@@ -57,3 +57,16 @@ Only the `Agent` and `Admin` groups get in. New sign ups land in `Client`, so pr
 
 They must sign out and back in so the token carries the new group.
 Photos go browser to S3 through a presigned POST (8 MB, JPEG/PNG/WebP). Location is set by dropping a pin on the map.
+
+## Address search (geocoding)
+
+`geocodeAddress(query)` is an agent-only GraphQL query. The editor's "Find on map" button calls it.
+Results (up to 5) are cached in the main table for 30 days (`GEO#<hash>` items with a `ttl` attribute). Empty results and errors are never cached.
+
+- **Default provider: Nominatim** (OpenStreetMap, no key). Fine for the low, button-triggered volume of agents saving listings.
+  Their usage policy asks apps to identify themselves. Set a real contact before launch:
+  `GEOCODE_USER_AGENT="rofo-estate/1.0 (you@yourdomain.com)" npx sst deploy`
+  Do not turn this into search-as-you-type. That is against their policy.
+- **Production option: MapTiler** (key, higher limits). `npx sst secret set MapTilerKey <key> --stage production`.
+  With the secret set the Lambda uses MapTiler. Empty means Nominatim. The key never reaches the browser.
+- Place names depend on OpenStreetMap coverage. In Suriname, street level matches can be thin, so the agent can always click the map or drag the pin.

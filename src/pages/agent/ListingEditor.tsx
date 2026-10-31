@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { apiCreateListing, apiUpdateListing } from '../../api/agent';
+import { apiCreateListing, apiGeocode, apiUpdateListing } from '../../api/agent';
 import { apiGetListing } from '../../api/listings';
 import { checkImage, uploadImage } from '../../api/upload';
-import { buildListingInput, emptyForm, listingToForm, type FormErrors, type ListingForm } from '../../lib/listingForm';
-import type { PropertyType } from '../../types';
+import { applyCandidate, buildListingInput, emptyForm, geocodeQuery, listingToForm, type FormErrors, type ListingForm } from '../../lib/listingForm';
+import type { GeoCandidate, PropertyType } from '../../types';
 
 // The map is large. Load it only when this page opens.
 const MapPicker = lazy(() => import('../../components/MapPicker'));
@@ -41,6 +41,10 @@ export function ListingEditor() {
   const [banner, setBanner] = useState<string | null>(null);
   const [uploading, setUploading] = useState(0); // files in flight
   const fileInput = useRef<HTMLInputElement>(null);
+  // Address search state: null = not searched yet, [] = searched with no results.
+  const [places, setPlaces] = useState<GeoCandidate[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
 
   // Editing: load the listing into the form.
   useEffect(() => {
@@ -60,6 +64,25 @@ export function ListingEditor() {
     value: form[k] as string,
     onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => set(k, e.target.value as never),
   });
+
+  /** Look up the address. The server caches results, so repeat searches are free. */
+  const findOnMap = async () => {
+    const q = geocodeQuery(form);
+    if (!q) { setGeoError('Enter a street address first.'); return; }
+    setSearching(true); setGeoError(null); setPlaces(null);
+    try {
+      const found = await apiGeocode(q);
+      setPlaces(found);
+      if (found.length === 0) setGeoError('No match. Check the spelling or click the map to place the pin yourself.');
+    } catch (e) { setGeoError((e as Error).message); } finally { setSearching(false); }
+  };
+
+  /** Use a result: move the pin and fill blank city and country. */
+  const choosePlace = (c: GeoCandidate) => {
+    setForm((f) => applyCandidate(f, c));
+    setErrors((e) => ({ ...e, lat: undefined, lng: undefined, city: undefined, country: undefined }));
+    setPlaces(null); setGeoError(null);
+  };
 
   /** Upload chosen photos one by one. Failures are reported per file and do not stop the rest. */
   const addPhotos = async (files: FileList | null) => {
@@ -150,7 +173,25 @@ export function ListingEditor() {
             <Field label="City" error={errors.city}><input {...text('city')} maxLength={80} /></Field>
             <Field label="Country" error={errors.country}><input {...text('country')} maxLength={80} /></Field>
           </div>
-          <p className="muted small">Click the map or drag the pin to set the exact spot. Without a pin the listing will not show on the map.</p>
+          <div className="geo-row">
+            <button type="button" className="btn btn-ghost" onClick={() => void findOnMap()} disabled={searching}>
+              {searching ? 'Searching...' : 'Find on map'}
+            </button>
+            <span className="muted small">Searches the address above. You can still click the map or drag the pin to fine tune.</span>
+          </div>
+          {geoError && <div className="notice small" role="alert">{geoError}</div>}
+          {places && places.length > 0 && (
+            <ul className="places-list" aria-label="Address matches">
+              {places.map((c) => (
+                <li key={`${c.lat},${c.lng}`}>
+                  <button type="button" onClick={() => choosePlace(c)}>
+                    <strong>{c.label}</strong>
+                    <span className="muted small">{c.lat.toFixed(4)}, {c.lng.toFixed(4)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <Suspense fallback={<div className="map-gl picker map-loading">Loading map...</div>}>
             <MapPicker lat={lat} lng={lng} onChange={(a, b) => { set('lat', String(a)); set('lng', String(b)); }} />
           </Suspense>

@@ -1,4 +1,4 @@
-import type { Inquiry, Listing } from '../types';
+import type { GeoCandidate, Inquiry, Listing } from '../types';
 import type { ListingInputPayload } from '../lib/listingForm';
 import { clearListingCache } from './listings';
 import { toListing, type ApiListing } from './mappers';
@@ -32,5 +32,11 @@ export async function apiDeleteListing(id: string): Promise<void> {
 /** Inquiries buyers sent for one listing, newest first. */
 export async function apiListingInquiries(listingId: string): Promise<Inquiry[]> {
   const rows = await transport.call<Inquiry[] | null>('listingInquiries', Q.listingInquiries, { listingId }, 'userPool');
+  return rows ?? [];
+}
+
+/** Turn an address into candidate places (agents only). Results are cached on the server. */
+export async function apiGeocode(query: string): Promise<GeoCandidate[]> {
+  const rows = await transport.call<GeoCandidate[] | null>('geocodeAddress', Q.geocodeAddress, { query }, 'userPool');
   return rows ?? [];
 }

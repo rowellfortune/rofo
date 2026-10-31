@@ -5,6 +5,7 @@ declare module 'sst' {
   export interface Resource {
     Table: { name: string; type: 'sst.aws.Dynamo' };
     Images: { name: string; type: 'sst.aws.Bucket' };
+    MapTilerKey: { type: 'sst.sst.Secret'; value: string };
   }
 }
 export {};

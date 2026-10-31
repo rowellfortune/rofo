@@ -97,3 +97,12 @@ export interface Inquiry {
   message: string;
   createdAt: string;
 }
+
+/** One place an address search can resolve to. */
+export interface GeoCandidate {
+  label: string;
+  lat: number;
+  lng: number;
+  city: string | null;
+  country: string | null;
+}

@@ -171,12 +171,16 @@ input PoolProposalInput {
   detail: String
 }
 
+type GeoCandidate { label: String! lat: Float! lng: Float! city: String country: String }
+type GeocodeResult { success: Boolean! data: [GeoCandidate!] error: String }
+
 type Query {
   getListing(id: ID!): ListingResult @aws_iam @aws_cognito_user_pools
   searchListings(input: SearchListingsInput!): ListingPageResult @aws_iam @aws_cognito_user_pools
   myListings: ListingsResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
   myFavorites: ListingsResult @aws_cognito_user_pools
   listingInquiries(listingId: ID!): InquiriesResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
+  geocodeAddress(query: String!): GeocodeResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
   listPools(listingId: ID, limit: Int, nextToken: String): PoolPageResult @aws_cognito_user_pools
   getPool(id: ID!): PoolResult @aws_cognito_user_pools
   myPools: PoolsResult @aws_cognito_user_pools

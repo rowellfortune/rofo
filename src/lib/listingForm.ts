@@ -1,4 +1,4 @@
-import type { Listing, PropertyType } from '../types';
+import type { GeoCandidate, Listing, PropertyType } from '../types';
 
 /** One photo in the form. `key` is the S3 key. `preview` is what we show. */
 export interface FormImage { key: string; preview: string }
@@ -109,5 +109,25 @@ export function buildListingInput(f: ListingForm): { ok: true; input: ListingInp
       isNew: f.isNew, openHouse: f.openHouse.trim() || null, description: f.description.trim(), features,
       images: f.images.map((i) => i.key), lat, lng, agency: f.agency.trim(), phone: f.phone.trim(),
     },
+  };
+}
+
+/** The text to search for: street, city and country joined. Needs a street of 3+ characters. */
+export function geocodeQuery(f: Pick<ListingForm, 'address' | 'city' | 'country'>): string | null {
+  if (f.address.trim().length < 3) return null;
+  return [f.address, f.city, f.country].map((x) => x.trim()).filter(Boolean).join(', ');
+}
+
+/**
+ * Apply a chosen place to the form. Sets the pin. Fills city and country only when blank,
+ * so the agent's own wording is never overwritten.
+ */
+export function applyCandidate(f: ListingForm, c: GeoCandidate): ListingForm {
+  return {
+    ...f,
+    lat: String(Math.round(c.lat * 1e5) / 1e5),
+    lng: String(Math.round(c.lng * 1e5) / 1e5),
+    city: f.city.trim() ? f.city : c.city ?? '',
+    country: f.country.trim() ? f.country : c.country ?? '',
   };
 }

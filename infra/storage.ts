@@ -21,6 +21,7 @@ export const table = new sst.aws.Dynamo('Table', {
     gsi3pk: 'string', gsi3sk: 'string',
   },
   primaryIndex: { hashKey: 'pk', rangeKey: 'sk' },
+  ttl: 'ttl', // expires cached geocoding results
   globalIndexes: {
     gsi1: { hashKey: 'gsi1pk', rangeKey: 'gsi1sk' },
     gsi2: { hashKey: 'gsi2pk', rangeKey: 'gsi2sk' },
