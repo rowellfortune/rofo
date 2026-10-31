@@ -5,9 +5,22 @@ import * as L from '../lib/listings';
 import * as Q from '../lib/inquiries';
 import * as P from '../lib/pools';
 import { geocode } from '../lib/geocode';
+import * as A from '../lib/applications';
+import { AdminAddUserToGroupCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 import { Resource } from 'sst';
 
 const AGENT_GROUPS = ['Agent', 'Admin'];
+
+const cognito = new CognitoIdentityProviderClient({});
+
+/** Real dependencies for application review: the Cognito group change and the clock. */
+const appDeps: A.ApplicationDeps = {
+  now: () => new Date(),
+  addToAgentGroup: async (userId) => {
+    // The user pool uses email as the username, but AdminAddUserToGroup accepts the sub too.
+    await cognito.send(new AdminAddUserToGroupCommand({ UserPoolId: process.env.USER_POOL_ID!, Username: userId, GroupName: 'Agent' }));
+  },
+};
 
 /** MapTiler key from the SST secret. Empty string means use the keyless Nominatim provider. */
 const mapTilerKey = (): string => {
@@ -58,6 +71,20 @@ async function route(event: AppSyncResolverEvent<any>) {
       return L.toggleFavorite(getCaller(event), args.listingId);
     case 'sendInquiry':
       return Q.sendInquiry(getCaller(event), args.input);
+
+    // Self-serve agent applications. Any signed-in user applies, only Admin reviews.
+    case 'myAgentApplication':
+      return A.myApplication(getCaller(event));
+    case 'submitAgentApplication':
+      return A.submitApplication(getCaller(event), args.input, appDeps);
+    case 'agentApplications': {
+      const c = getCaller(event); requireGroup(c, ['Admin']);
+      return A.listApplications(c, args.status);
+    }
+    case 'reviewAgentApplication': {
+      const c = getCaller(event); requireGroup(c, ['Admin']);
+      return A.reviewApplication(c, args.userId, args.decision, args.note, appDeps);
+    }
 
     // Address search for the listing editor (agents only). The key stays on the server.
     case 'geocodeAddress': {

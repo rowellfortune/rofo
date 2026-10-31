@@ -106,3 +106,21 @@ export interface GeoCandidate {
   city: string | null;
   country: string | null;
 }
+
+/** A request to become an agent. One per user. */
+export interface AgentApplication {
+  userId: string;
+  email: string;
+  name: string;
+  agency: string;
+  phone: string;
+  registrationNo: string;
+  country: string;
+  website: string | null;
+  about: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reviewNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+  reviewedAt: string | null;
+}

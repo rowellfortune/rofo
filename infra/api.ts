@@ -19,7 +19,12 @@ const resolverFn = new sst.aws.Function('GraphqlResolver', {
   link: [table, mapTilerKey],
   timeout: '15 seconds',
   // Nominatim asks apps to identify themselves. Set a real contact for production.
-  environment: { GEOCODE_USER_AGENT: process.env.GEOCODE_USER_AGENT ?? 'rofo-estate/1.0' },
+  environment: {
+    GEOCODE_USER_AGENT: process.env.GEOCODE_USER_AGENT ?? 'rofo-estate/1.0',
+    USER_POOL_ID: userPool.id, // used to add approved applicants to the Agent group
+  },
+  // Only this one action, only on this user pool.
+  permissions: [{ actions: ['cognito-idp:AdminAddUserToGroup'], resources: [userPool.arn] }],
 });
 
 export const graphql = new aws.appsync.GraphQLApi('Graphql', {
@@ -58,8 +63,8 @@ const dataSource = new aws.appsync.DataSource('GraphqlLambda', {
 
 // Direct Lambda resolvers (no VTL). Field list must match schema.graphql.
 const fields: Record<'Query' | 'Mutation', string[]> = {
-  Query: ['getListing', 'searchListings', 'myListings', 'myFavorites', 'listingInquiries', 'geocodeAddress', 'listPools', 'getPool', 'myPools'],
-  Mutation: ['createListing', 'updateListing', 'deleteListing', 'toggleFavorite', 'sendInquiry',
+  Query: ['getListing', 'searchListings', 'myListings', 'myFavorites', 'listingInquiries', 'myAgentApplication', 'agentApplications', 'geocodeAddress', 'listPools', 'getPool', 'myPools'],
+  Mutation: ['createListing', 'updateListing', 'deleteListing', 'toggleFavorite', 'sendInquiry', 'submitAgentApplication', 'reviewAgentApplication',
     'createPool', 'joinPool', 'leavePool', 'createPoolProposal', 'votePoolProposal', 'recordPoolContribution'],
 };
 (Object.entries(fields) as ['Query' | 'Mutation', string[]][]).forEach(([type, names]) => {

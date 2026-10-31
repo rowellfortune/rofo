@@ -1,6 +1,6 @@
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
-import { isAgent } from './RequireAgent';
+import { isAdmin, isAgent } from './RequireAgent';
 
 /** Logo mark: a house shape in the brand colors. */
 export function Logo() {
@@ -33,6 +33,7 @@ export function Header() {
           {dealLink('buy', 'Buy')}
           {dealLink('rent', 'Rent')}
           <NavLink to="/pools">Buy together</NavLink>
+          {isAdmin(user?.groups) && <NavLink to="/admin/applications">Applications</NavLink>}
           <a href="/#sell">Sell</a>
         </nav>
         <div className="header-actions">
@@ -44,7 +45,7 @@ export function Header() {
           ) : (
             <Link className="btn btn-ghost" to="/login">Log in</Link>
           )}
-          <Link className="btn btn-primary" to={isAgent(user?.groups) ? '/agent' : '/agent/new'}>{isAgent(user?.groups) ? 'Dashboard' : 'List a property'}</Link>
+          <Link className="btn btn-primary" to={isAgent(user?.groups) ? '/agent' : '/agent/apply'}>{isAgent(user?.groups) ? 'Dashboard' : 'List a property'}</Link>
         </div>
       </div>
     </header>

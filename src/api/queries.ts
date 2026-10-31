@@ -9,6 +9,8 @@ const POOL = `id name listingId listingPrice goal raised maxMembers memberCount 
   ledger { id userId amount note createdAt }
   proposals { id title detail createdBy createdAt yes no needed status myVote }`;
 
+const APPLICATION = `userId email name agency phone registrationNo country website about status reviewNote createdAt updatedAt reviewedAt`;
+
 export const Q = {
   searchListings: `query Search($input: SearchListingsInput!) {
     searchListings(input: $input) { success error data { nextToken items { ${LISTING} } } } }`,
@@ -24,6 +26,11 @@ export const Q = {
   listingInquiries: `query Inq($listingId: ID!) { listingInquiries(listingId: $listingId) {
     success error data { id listingId name email message createdAt } } }`,
 
+  myAgentApplication: `query MyApp { myAgentApplication { success error data { ${APPLICATION} } } }`,
+  submitAgentApplication: `mutation Apply($input: AgentApplicationInput!) { submitAgentApplication(input: $input) { success error data { ${APPLICATION} } } }`,
+  agentApplications: `query Apps($status: ApplicationStatus!) { agentApplications(status: $status) { success error data { ${APPLICATION} } } }`,
+  reviewAgentApplication: `mutation Review($userId: ID!, $decision: ApplicationDecision!, $note: String) {
+    reviewAgentApplication(userId: $userId, decision: $decision, note: $note) { success error data { ${APPLICATION} } } }`,
   geocodeAddress: `query Geo($query: String!) { geocodeAddress(query: $query) { success error data { label lat lng city country } } }`,
 
   listPools: `query Pools($listingId: ID) { listPools(listingId: $listingId, limit: 50) {

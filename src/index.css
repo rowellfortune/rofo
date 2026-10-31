@@ -282,3 +282,13 @@ p { margin: 0 0 1rem; }
 .places-list li + li { border-top: 1px solid var(--line); }
 .places-list button { display: flex; flex-direction: column; align-items: flex-start; gap: .1rem; width: 100%; text-align: left; border: 0; background: transparent; color: var(--ink); font: inherit; padding: .65rem .9rem; cursor: pointer; }
 .places-list button:hover, .places-list button:focus-visible { background: var(--line); }
+
+/* Applications */
+.lead { max-width: 60ch; }
+.status-card { max-width: 560px; }
+.chip-status.ok { background: var(--good-soft); color: var(--good); }
+.admin-tabs { margin: .5rem 0 1rem; }
+.app-card .facts { margin-bottom: .75rem; }
+.app-card a { color: var(--primary-text); }
+.reject-box { display: flex; flex-direction: column; gap: .5rem; }
+.reject-box textarea { border: 1px solid var(--line-2); border-radius: var(--radius); padding: .6rem .8rem; font: inherit; }

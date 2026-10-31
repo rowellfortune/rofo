@@ -19,6 +19,8 @@ interface AuthApi {
   signUp: (email: string, password: string, name: string) => Promise<void>;
   confirm: (email: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Re-read groups from Cognito without signing out (use after an admin approves you). */
+  refresh: () => Promise<AuthUser | null>;
 }
 
 const Ctx = createContext<AuthApi | null>(null);
@@ -74,9 +76,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const refresh = useCallback(async () => {
+    const auth = await getAuth();
+    await auth.fetchAuthSession({ forceRefresh: true }); // new tokens carry the current groups
+    const fresh = await readUser();
+    setUser(fresh);
+    return fresh;
+  }, []);
+
   const value = useMemo<AuthApi>(
-    () => ({ enabled: apiEnabled, user, loading, signIn, signUp, confirm, signOut }),
-    [user, loading, signIn, signUp, confirm, signOut],
+    () => ({ enabled: apiEnabled, user, loading, signIn, signUp, confirm, signOut, refresh }),
+    [user, loading, signIn, signUp, confirm, signOut, refresh],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

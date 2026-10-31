@@ -173,3 +173,59 @@ test('apiGeocode asks as a signed in user and tolerates a null list', async () =
   assert.deepEqual(await apiGeocode('empty'), []);
   assert.ok(seen.every((c) => c.field === 'geocodeAddress' && c.mode === 'userPool'));
 });
+
+// ---------------------------------------------------------------- agent applications
+import { apiListApplications, apiMyApplication, apiReviewApplication, apiSubmitApplication } from '../src/api/applications';
+import { applicationToForm, buildApplication, emptyApplication, type ApplicationForm } from '../src/lib/applicationForm';
+
+const goodApp = (over: Partial<ApplicationForm> = {}): ApplicationForm => ({
+  ...emptyApplication('Ann Lee'), agency: 'Palm Realty', phone: '+597 123 4567', registrationNo: 'KKF-12345',
+  country: 'Suriname', about: 'Ten years selling homes in Paramaribo.', ...over,
+});
+
+test('application form: valid input is trimmed and blank website becomes null', () => {
+  const r = buildApplication(goodApp({ name: '  Ann Lee ', website: '   ' }));
+  assert.ok(r.ok);
+  assert.equal(r.input.name, 'Ann Lee');
+  assert.equal(r.input.website, null);
+  const withSite = buildApplication(goodApp({ website: 'https://palm.example' }));
+  assert.ok(withSite.ok && withSite.input.website === 'https://palm.example');
+});
+
+test('application form: catches what the server would reject', () => {
+  const bad = buildApplication(goodApp({ name: 'A', phone: '12', registrationNo: 'x', about: 'too short', website: 'javascript:alert(1)' }));
+  assert.ok(!bad.ok);
+  assert.deepEqual(Object.keys(bad.errors).sort(), ['about', 'name', 'phone', 'registrationNo', 'website']);
+  assert.ok(!buildApplication(goodApp({ about: 'x'.repeat(1501) })).ok);
+  assert.ok(!buildApplication(goodApp({ website: 'palm.example' })).ok); // needs a scheme
+});
+
+test('a rejected application prefills the form for a second attempt', () => {
+  const form = applicationToForm({
+    userId: 'u', email: 'e@x.io', name: 'Ann', agency: 'Palm', phone: '12345', registrationNo: 'R-1', country: 'SR',
+    website: null, about: 'about text that is long enough', status: 'REJECTED', reviewNote: 'Fix the number',
+    createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z', reviewedAt: '2026-01-02T00:00:00.000Z',
+  });
+  assert.equal(form.website, ''); // null becomes an empty input, not "null"
+  assert.equal(form.registrationNo, 'R-1');
+});
+
+test('application API calls use signed in mode and pass the right variables', async () => {
+  const seen: { field: string; mode: string; vars: Record<string, unknown> }[] = [];
+  transport.call = (async (field: string, _q: string, vars: Record<string, unknown>, mode: string) => {
+    seen.push({ field, mode, vars });
+    return field === 'agentApplications' ? null : field === 'myAgentApplication' ? null : { userId: 'u', status: 'PENDING' };
+  }) as unknown as typeof transport.call;
+
+  assert.equal(await apiMyApplication(), null); // never applied
+  assert.deepEqual(await apiListApplications('PENDING'), []); // null list becomes empty
+  const r = buildApplication(goodApp()); assert.ok(r.ok);
+  await apiSubmitApplication(r.input);
+  await apiReviewApplication('u1', 'REJECTED', 'Fix the number');
+  await apiReviewApplication('u2', 'APPROVED');
+
+  assert.ok(seen.every((c) => c.mode === 'userPool'));
+  assert.deepEqual(seen.find((c) => c.field === 'agentApplications')!.vars, { status: 'PENDING' });
+  assert.deepEqual(seen[3].vars, { userId: 'u1', decision: 'REJECTED', note: 'Fix the number' });
+  assert.deepEqual(seen[4].vars, { userId: 'u2', decision: 'APPROVED', note: null }); // no note sent as null
+});

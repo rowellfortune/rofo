@@ -174,12 +174,47 @@ input PoolProposalInput {
 type GeoCandidate { label: String! lat: Float! lng: Float! city: String country: String }
 type GeocodeResult { success: Boolean! data: [GeoCandidate!] error: String }
 
+enum ApplicationStatus { PENDING APPROVED REJECTED }
+enum ApplicationDecision { APPROVED REJECTED }
+
+type AgentApplication {
+  userId: ID!
+  email: String!
+  name: String!
+  agency: String!
+  phone: String!
+  registrationNo: String!
+  country: String!
+  website: String
+  about: String!
+  status: ApplicationStatus!
+  reviewNote: String
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+  reviewedAt: AWSDateTime
+}
+
+type ApplicationResult { success: Boolean! data: AgentApplication error: String }
+type ApplicationsResult { success: Boolean! data: [AgentApplication!] error: String }
+
+input AgentApplicationInput {
+  name: String!
+  agency: String!
+  phone: String!
+  registrationNo: String!
+  country: String!
+  website: String
+  about: String!
+}
+
 type Query {
   getListing(id: ID!): ListingResult @aws_iam @aws_cognito_user_pools
   searchListings(input: SearchListingsInput!): ListingPageResult @aws_iam @aws_cognito_user_pools
   myListings: ListingsResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
   myFavorites: ListingsResult @aws_cognito_user_pools
   listingInquiries(listingId: ID!): InquiriesResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
+  myAgentApplication: ApplicationResult @aws_cognito_user_pools
+  agentApplications(status: ApplicationStatus!): ApplicationsResult @aws_cognito_user_pools(cognito_groups: ["Admin"])
   geocodeAddress(query: String!): GeocodeResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
   listPools(listingId: ID, limit: Int, nextToken: String): PoolPageResult @aws_cognito_user_pools
   getPool(id: ID!): PoolResult @aws_cognito_user_pools
@@ -192,6 +227,8 @@ type Mutation {
   deleteListing(id: ID!): BooleanResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
   toggleFavorite(listingId: ID!): BooleanResult @aws_cognito_user_pools
   sendInquiry(input: InquiryInput!): InquiryResult @aws_cognito_user_pools
+  submitAgentApplication(input: AgentApplicationInput!): ApplicationResult @aws_cognito_user_pools
+  reviewAgentApplication(userId: ID!, decision: ApplicationDecision!, note: String): ApplicationResult @aws_cognito_user_pools(cognito_groups: ["Admin"])
   createPool(input: CreatePoolInput!): PoolResult @aws_cognito_user_pools
   joinPool(poolId: ID!, monthly: Float!): BooleanResult @aws_cognito_user_pools
   leavePool(poolId: ID!): BooleanResult @aws_cognito_user_pools

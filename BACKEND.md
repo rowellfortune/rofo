@@ -51,11 +51,7 @@ With none of these set the app runs as a demo on mock data.
 ## Agent dashboard
 
 Routes: `/agent` (my listings), `/agent/new`, `/agent/:id/edit`, `/agent/:id/inquiries`.
-Only the `Agent` and `Admin` groups get in. New sign ups land in `Client`, so promote people by hand:
-
-`aws cognito-idp admin-add-user-to-group --user-pool-id <id> --username <email> --group-name Agent`
-
-They must sign out and back in so the token carries the new group.
+Only the `Agent` and `Admin` groups get in. New sign ups land in `Client` and apply for agent access (below).
 Photos go browser to S3 through a presigned POST (8 MB, JPEG/PNG/WebP). Location is set by dropping a pin on the map.
 
 ## Address search (geocoding)
@@ -70,3 +66,19 @@ Results (up to 5) are cached in the main table for 30 days (`GEO#<hash>` items w
 - **Production option: MapTiler** (key, higher limits). `npx sst secret set MapTilerKey <key> --stage production`.
   With the secret set the Lambda uses MapTiler. Empty means Nominatim. The key never reaches the browser.
 - Place names depend on OpenStreetMap coverage. In Suriname, street level matches can be thin, so the agent can always click the map or drag the pin.
+
+## Agent applications (self-serve)
+
+Flow: a signed in buyer opens `/agent/apply`, submits agency details, an admin reviews at `/admin/applications`,
+approval adds the user to the `Agent` group, and the applicant clicks "Activate agent access" (a token refresh, no sign out).
+
+- Items: `pk=APPLICATION#<userId>`, `sk=META`. The admin queue is `gsi2pk=APPS#<STATUS>`. One application per user.
+- Resubmitting is allowed only after a rejection. Writes are conditional, so a double click or two admins cannot both win.
+- Approve claims the decision first, then adds the Cognito group. If Cognito fails the claim is undone and the application stays pending.
+- Only the resolver Lambda may call `cognito-idp:AdminAddUserToGroup`, scoped to this user pool.
+
+**Bootstrap the first admin by hand** (nobody can approve before there is one):
+
+`aws cognito-idp admin-add-user-to-group --user-pool-id <id> --username <email> --group-name Admin`
+
+Then sign out and in. Not built yet: email to the applicant on a decision (needs SES), revoking agent access, and the applicant's license document upload.

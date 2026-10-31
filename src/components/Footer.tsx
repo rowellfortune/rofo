@@ -17,7 +17,7 @@ export function Footer() {
         </div>
         <div>
           <h4>For agents</h4>
-          <a href="#list">List a property</a>
+          <a href="/agent/apply">Become an agent</a>
           <a href="#plans">Plans</a>
         </div>
         <div>

@@ -8,7 +8,9 @@ import { Pools } from './pages/Pools';
 import { NewPool } from './pages/NewPool';
 import { PoolDetail } from './pages/PoolDetail';
 import { Login } from './pages/Login';
-import { RequireAgent } from './components/RequireAgent';
+import { RequireAdmin, RequireAgent } from './components/RequireAgent';
+import { ApplyAgent } from './pages/agent/ApplyAgent';
+import { AdminApplications } from './pages/admin/AdminApplications';
 import { AgentDashboard } from './pages/agent/AgentDashboard';
 import { ListingEditor } from './pages/agent/ListingEditor';
 import { Inquiries } from './pages/agent/Inquiries';
@@ -24,6 +26,8 @@ export default function App() {
           <Route path="/search" element={<Results />} />
           <Route path="/property/:id" element={<Detail />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/agent/apply" element={<ApplyAgent />} />
+          <Route path="/admin/applications" element={<RequireAdmin><AdminApplications /></RequireAdmin>} />
           <Route path="/agent" element={<RequireAgent><AgentDashboard /></RequireAgent>} />
           <Route path="/agent/new" element={<RequireAgent><ListingEditor /></RequireAgent>} />
           <Route path="/agent/:id/edit" element={<RequireAgent><ListingEditor /></RequireAgent>} />
