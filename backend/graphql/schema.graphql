@@ -1,0 +1,119 @@
+# AppSync schema. Every resolver returns { success, data, error }.
+# Default auth: Cognito user pool. Public fields also allow IAM (guest via identity pool).
+
+enum Deal { buy rent }
+enum PropertyType { House Apartment Villa Land Commercial }
+enum SortBy { newest price_asc price_desc area_desc }
+
+type Listing @aws_iam @aws_cognito_user_pools {
+  id: ID!
+  deal: Deal!
+  type: PropertyType!
+  title: String!
+  address: String!
+  city: String!
+  country: String!
+  price: Float!
+  beds: Int!
+  baths: Int!
+  areaM2: Int!
+  plotM2: Int
+  yearBuilt: Int
+  isNew: Boolean!
+  openHouse: String
+  description: String!
+  features: [String!]!
+  images: [String!]!
+  lat: Float
+  lng: Float
+  agentId: ID!
+  agentName: String!
+  agency: String!
+  phone: String!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+type ListingPage @aws_iam @aws_cognito_user_pools {
+  items: [Listing!]!
+  nextToken: String
+}
+
+type Inquiry {
+  id: ID!
+  listingId: ID!
+  userId: ID!
+  name: String!
+  email: AWSEmail!
+  message: String!
+  createdAt: AWSDateTime!
+}
+
+type ListingResult @aws_iam @aws_cognito_user_pools { success: Boolean! data: Listing error: String }
+type ListingPageResult @aws_iam @aws_cognito_user_pools { success: Boolean! data: ListingPage error: String }
+type ListingsResult { success: Boolean! data: [Listing!] error: String }
+type InquiriesResult { success: Boolean! data: [Inquiry!] error: String }
+type InquiryResult { success: Boolean! data: Inquiry error: String }
+type BooleanResult { success: Boolean! data: Boolean error: String }
+
+input SearchListingsInput {
+  deal: Deal!
+  country: String
+  city: String
+  type: PropertyType
+  minPrice: Float
+  maxPrice: Float
+  minBeds: Int
+  sortBy: SortBy
+  limit: Int
+  nextToken: String
+}
+
+input ListingInput {
+  deal: Deal!
+  type: PropertyType!
+  title: String!
+  address: String!
+  city: String!
+  country: String!
+  price: Float!
+  beds: Int!
+  baths: Int!
+  areaM2: Int!
+  plotM2: Int
+  yearBuilt: Int
+  isNew: Boolean
+  openHouse: String
+  description: String!
+  features: [String!]
+  images: [String!]
+  lat: Float
+  lng: Float
+  agency: String!
+  phone: String!
+}
+
+input InquiryInput {
+  listingId: ID!
+  name: String!
+  email: AWSEmail!
+  message: String!
+}
+
+type Query {
+  getListing(id: ID!): ListingResult @aws_iam @aws_cognito_user_pools
+  searchListings(input: SearchListingsInput!): ListingPageResult @aws_iam @aws_cognito_user_pools
+  myListings: ListingsResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
+  myFavorites: ListingsResult @aws_cognito_user_pools
+  listingInquiries(listingId: ID!): InquiriesResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
+}
+
+type Mutation {
+  createListing(input: ListingInput!): ListingResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
+  updateListing(id: ID!, input: ListingInput!): ListingResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
+  deleteListing(id: ID!): BooleanResult @aws_cognito_user_pools(cognito_groups: ["Agent", "Admin"])
+  toggleFavorite(listingId: ID!): BooleanResult @aws_cognito_user_pools
+  sendInquiry(input: InquiryInput!): InquiryResult @aws_cognito_user_pools
+}
+
+schema { query: Query mutation: Mutation }
