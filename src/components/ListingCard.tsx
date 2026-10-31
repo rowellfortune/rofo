@@ -19,7 +19,7 @@ export function ListingCard({ listing: l, layout = 'tile', highlighted, onHover 
       onMouseEnter={() => onHover?.(l.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      <div className="card-img" style={{ backgroundImage: `url("${placeholderImage(l.hue)}")` }}>
+      <div className="card-img" style={{ backgroundImage: `url("${placeholderImage(l.hue, 0, l.type)}")` }}>
         {l.isNew && <span className="badge badge-new">New</span>}
         {l.openHouse && <span className="badge badge-open">Open house</span>}
       </div>

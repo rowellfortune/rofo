@@ -38,7 +38,7 @@ export function Detail() {
 
       <div className="gallery">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className={`g g${i}`} style={{ backgroundImage: `url("${placeholderImage(l.hue, i)}")` }} />
+          <div key={i} className={`g g${i}`} style={{ backgroundImage: `url("${placeholderImage(l.hue, i, l.type)}")` }} />
         ))}
       </div>
 
