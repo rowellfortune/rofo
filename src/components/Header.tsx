@@ -23,6 +23,7 @@ export function Header() {
         <nav className="nav" aria-label="Main">
           <NavLink to="/search?deal=buy">Buy</NavLink>
           <NavLink to="/search?deal=rent">Rent</NavLink>
+          <NavLink to="/pools">Buy together</NavLink>
           <a href="#sell">Sell</a>
           <a href="#agents">Find an agent</a>
         </nav>

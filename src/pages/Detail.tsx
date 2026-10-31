@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getListing } from '../data/listings';
 import { formatPrice, placeholderImage } from '../lib/format';
+import { PoolBuyPanel } from '../components/PoolBuyPanel';
 
 /** Property detail: gallery, key facts, description, contact form. */
 export function Detail() {
@@ -83,6 +84,7 @@ export function Detail() {
             </form>
           )}
           <a className="btn btn-ghost btn-block" href={`tel:${l.agent.phone}`}>Call {l.agent.phone}</a>
+          <PoolBuyPanel listing={l} />
         </aside>
       </div>
     </div>

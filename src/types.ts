@@ -39,3 +39,44 @@ export interface Filters {
   beds: string;
   sort: 'newest' | 'price-asc' | 'price-desc' | 'area-desc';
 }
+
+// ---------- Co-buying pools ----------
+
+/** One member of a buying pool. */
+export interface PoolMember {
+  id: string;
+  name: string;
+  monthly: number; // agreed monthly contribution (USD)
+  contributed: number; // total paid in so far (USD)
+  joinedAt: string;
+}
+
+/** One line in the pool ledger. */
+export interface LedgerEntry {
+  id: string;
+  memberId: string;
+  amount: number;
+  date: string;
+  note: string;
+}
+
+/** A decision the group votes on. One member, one vote. */
+export interface Proposal {
+  id: string;
+  title: string;
+  detail: string;
+  votes: Record<string, 'yes' | 'no'>; // memberId -> choice
+}
+
+/** A group of people saving together to buy one property. */
+export interface Pool {
+  id: string;
+  name: string;
+  listingId: string;
+  maxMembers: number;
+  targetMonths: number;
+  createdAt: string;
+  members: PoolMember[];
+  ledger: LedgerEntry[];
+  proposals: Proposal[];
+}

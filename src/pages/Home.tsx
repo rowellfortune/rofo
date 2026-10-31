@@ -60,6 +60,16 @@ export function Home() {
       </section>
 
       <section className="container section">
+        <div className="cta cta-pool">
+          <div>
+            <h2>Cannot buy alone? Buy together.</h2>
+            <p>Pool small monthly amounts with people you trust and own a share of a home.</p>
+          </div>
+          <Link to="/pools" className="btn btn-primary btn-lg">See pools</Link>
+        </div>
+      </section>
+
+      <section className="container section">
         <div className="cta" id="sell">
           <div>
             <h2>Selling your home?</h2>
