@@ -12,7 +12,7 @@ export const listings: Listing[] = [
     openHouse: 'Sat 11:00 - 13:00',
     description: 'Wake up to open water views. This villa has a private pool, a chef kitchen and direct beach access. Hurricane-rated windows and a backup generator are included.',
     features: ['Infinity pool', 'Beach access', 'Generator', 'Smart home', 'Double garage'],
-    hue: 190, lat: 22, lng: 30, agent,
+    hue: 190, lat: 19.335, lng: -81.383, agent,
   },
   {
     id: 'l2', deal: 'buy', type: 'House', title: 'Colonial family home near the Palmentuin',
@@ -20,7 +20,7 @@ export const listings: Listing[] = [
     price: 285000, beds: 4, baths: 2, areaM2: 190, plotM2: 450, yearBuilt: 1952, isNew: false,
     description: 'A restored wooden house in the historic center. High ceilings, a covered veranda and a mature garden with fruit trees.',
     features: ['Veranda', 'Garden', 'Restored woodwork', 'Solar panels'],
-    hue: 28, lat: 62, lng: 58, agent,
+    hue: 28, lat: 5.8239, lng: -55.1678, agent,
   },
   {
     id: 'l3', deal: 'rent', type: 'Apartment', title: 'Bright 2 bedroom apartment, city view',
@@ -28,7 +28,7 @@ export const listings: Listing[] = [
     price: 1450, beds: 2, baths: 1, areaM2: 88, yearBuilt: 2016, isNew: false,
     description: 'Furnished apartment ten minutes from the pontoon bridge. Shared rooftop pool, fast fiber internet and secure parking.',
     features: ['Furnished', 'Rooftop pool', 'Fiber internet', 'Parking'],
-    hue: 340, lat: 48, lng: 44, agent,
+    hue: 340, lat: 12.1084, lng: -68.9335, agent,
   },
   {
     id: 'l4', deal: 'buy', type: 'Apartment', title: 'Penthouse with wraparound terrace',
@@ -37,7 +37,7 @@ export const listings: Listing[] = [
     openHouse: 'Sun 14:00 - 16:00',
     description: 'Top floor corner unit with 360 degree views. Concierge, gym and a private elevator lobby.',
     features: ['Terrace', 'Concierge', 'Gym', 'Private elevator'],
-    hue: 210, lat: 14, lng: 18, agent,
+    hue: 210, lat: 25.078, lng: -77.338, agent,
   },
   {
     id: 'l5', deal: 'buy', type: 'Land', title: 'Building plot on the Suriname River',
@@ -45,7 +45,7 @@ export const listings: Listing[] = [
     price: 78000, beds: 0, baths: 0, areaM2: 0, plotM2: 1800, yearBuilt: 0, isNew: false,
     description: 'Flat, cleared plot with river frontage. Power and water at the road. Titled and ready to build.',
     features: ['River frontage', 'Titled', 'Power at road'],
-    hue: 120, lat: 70, lng: 66, agent,
+    hue: 120, lat: 5.7, lng: -55.21, agent,
   },
   {
     id: 'l6', deal: 'rent', type: 'House', title: 'Modern 3 bedroom house with garden',
@@ -53,7 +53,7 @@ export const listings: Listing[] = [
     price: 1900, beds: 3, baths: 2, areaM2: 160, plotM2: 380, yearBuilt: 2018, isNew: false,
     description: 'Quiet street, solar water heating and air conditioning in every bedroom. Pets welcome.',
     features: ['Air conditioning', 'Solar water heating', 'Pet friendly', 'Carport'],
-    hue: 160, lat: 60, lng: 52, agent,
+    hue: 160, lat: 5.81, lng: -55.19, agent,
   },
   {
     id: 'l7', deal: 'buy', type: 'House', title: 'Hillside home with sunset views',
@@ -61,7 +61,7 @@ export const listings: Listing[] = [
     price: 620000, beds: 4, baths: 3, areaM2: 270, plotM2: 900, yearBuilt: 2014, isNew: false,
     description: 'Open plan living, a wide deck and a plunge pool. Five minutes to the marina.',
     features: ['Plunge pool', 'Deck', 'Marina nearby', 'Cistern'],
-    hue: 15, lat: 36, lng: 80, agent,
+    hue: 15, lat: 14.08, lng: -60.95, agent,
   },
   {
     id: 'l8', deal: 'rent', type: 'Villa', title: 'Garden villa, long stay friendly',
@@ -69,7 +69,7 @@ export const listings: Listing[] = [
     price: 3800, beds: 3, baths: 3, areaM2: 210, plotM2: 700, yearBuilt: 2011, isNew: false,
     description: 'Walk to the beach. Furnished with a tropical garden, outdoor kitchen and a small pool.',
     features: ['Furnished', 'Small pool', 'Outdoor kitchen', 'Walk to beach'],
-    hue: 95, lat: 40, lng: 88, agent,
+    hue: 95, lat: 13.097, lng: -59.613, agent,
   },
   {
     id: 'l9', deal: 'buy', type: 'Commercial', title: 'Corner retail unit, high foot traffic',
@@ -77,7 +77,7 @@ export const listings: Listing[] = [
     price: 410000, beds: 0, baths: 1, areaM2: 140, yearBuilt: 2005, isNew: false,
     description: 'Ground floor shop with storage and a rear loading door. Tenant in place, 8 percent yield.',
     features: ['Tenant in place', 'Loading door', 'Corner position'],
-    hue: 260, lat: 63, lng: 60, agent,
+    hue: 260, lat: 5.823, lng: -55.165, agent,
   },
   {
     id: 'l10', deal: 'buy', type: 'Apartment', title: 'New build 1 bedroom near the marina',
@@ -85,7 +85,7 @@ export const listings: Listing[] = [
     price: 215000, beds: 1, baths: 1, areaM2: 64, yearBuilt: 2025, isNew: true,
     description: 'Energy efficient new build with a balcony and a shared courtyard. Completion in spring.',
     features: ['New build', 'Balcony', 'Courtyard', 'Energy label A'],
-    hue: 300, lat: 20, lng: 48, agent,
+    hue: 300, lat: 17.9712, lng: -76.793, agent,
   },
   {
     id: 'l11', deal: 'rent', type: 'Apartment', title: 'Studio near the university',
@@ -93,7 +93,7 @@ export const listings: Listing[] = [
     price: 520, beds: 1, baths: 1, areaM2: 38, yearBuilt: 2020, isNew: false,
     description: 'Compact studio with kitchenette, air conditioning and included utilities.',
     features: ['Utilities included', 'Air conditioning', 'Kitchenette'],
-    hue: 50, lat: 61, lng: 55, agent,
+    hue: 50, lat: 5.845, lng: -55.185, agent,
   },
   {
     id: 'l12', deal: 'buy', type: 'Villa', title: 'Gated villa with guest cottage',
@@ -101,7 +101,7 @@ export const listings: Listing[] = [
     price: 735000, beds: 4, baths: 4, areaM2: 330, plotM2: 1000, yearBuilt: 2021, isNew: false,
     description: 'Inside a golf community. Main house plus a one bedroom guest cottage. Pool, gazebo and 24/7 security.',
     features: ['Gated', 'Guest cottage', 'Pool', 'Golf community'],
-    hue: 175, lat: 26, lng: 62, agent,
+    hue: 175, lat: 18.582, lng: -68.405, agent,
   },
 ];
 

@@ -9,6 +9,12 @@ interface Props {
 
 /** Stylised map with price pins. Replace with Mapbox or Leaflet later. */
 export function MockMap({ items, activeId, onHover }: Props) {
+  // Project real coordinates into the box, with padding, using the bounds of the current results.
+  const lats = items.map((l) => l.lat), lngs = items.map((l) => l.lng);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  const pos = (v: number, lo: number, hi: number) => (hi === lo ? 50 : 12 + ((v - lo) / (hi - lo)) * 76);
+
   return (
     <div className="map" aria-label="Map of results">
       <div className="map-water" />
@@ -17,7 +23,7 @@ export function MockMap({ items, activeId, onHover }: Props) {
           key={l.id}
           to={`/property/${l.id}`}
           className={`pin${activeId === l.id ? ' active' : ''}`}
-          style={{ top: `${l.lat}%`, left: `${l.lng}%` }}
+          style={{ top: `${100 - pos(l.lat, minLat, maxLat)}%`, left: `${pos(l.lng, minLng, maxLng)}%` }}
           onMouseEnter={() => onHover(l.id)}
           onMouseLeave={() => onHover(null)}
         >

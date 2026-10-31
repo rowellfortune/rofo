@@ -186,3 +186,10 @@ p { margin: 0 0 1rem; }
 .form-card input[type=range] { accent-color: var(--sun); }
 .cta-pool { background: linear-gradient(135deg, #7a3e1d, var(--sun-dark)); }
 @media (max-width: 900px) { .pool-grid { grid-template-columns: 1fr; } .ledger li { grid-template-columns: 1fr 1fr; } }
+
+/* Mapbox */
+.mapbox { position: relative; height: 100%; width: 100%; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+.map-loading { display: grid; place-items: center; background: #e9efe4; color: var(--muted); }
+.detail-map { height: 280px; border-radius: var(--radius); overflow: hidden; }
+.mb-pin { border: 0; cursor: pointer; background: var(--ocean); color: var(--white); font: 700 .8rem/1 Inter, system-ui, sans-serif; padding: .35rem .6rem; border-radius: 999px; box-shadow: var(--shadow); }
+.mb-pin.active, .mb-pin:hover { background: var(--sun); }

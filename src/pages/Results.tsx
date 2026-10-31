@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { listings } from '../data/listings';
 import { ListingCard } from '../components/ListingCard';
-import { MockMap } from '../components/MockMap';
+import { ResultsMap } from '../components/ResultsMap';
 import type { Listing } from '../types';
 
 /** Apply URL filters to the listing array. */
@@ -90,7 +90,7 @@ export function Results() {
           ))}
         </div>
         <aside className="results-map">
-          <MockMap items={items} activeId={hover} onHover={setHover} />
+          <ResultsMap items={items} activeId={hover} onHover={setHover} />
         </aside>
       </div>
     </div>

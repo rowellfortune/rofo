@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { getListing } from '../data/listings';
 import { formatPrice, placeholderImage } from '../lib/format';
 import { PoolBuyPanel } from '../components/PoolBuyPanel';
+import { ResultsMap, hasMapbox } from '../components/ResultsMap';
 
 /** Property detail: gallery, key facts, description, contact form. */
 export function Detail() {
@@ -61,6 +62,14 @@ export function Detail() {
 
           <h3>Features</h3>
           <ul className="chips">{l.features.map((f) => <li key={f}>{f}</li>)}</ul>
+
+          {hasMapbox && (
+            <>
+              <h3>Location</h3>
+              <div className="detail-map"><ResultsMap items={[l]} single /></div>
+              <p className="muted small">Approximate location.</p>
+            </>
+          )}
 
           <h3>Details</h3>
           <dl className="facts">

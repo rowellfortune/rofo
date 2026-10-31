@@ -24,8 +24,8 @@ export interface Listing {
   description: string;
   features: string[];
   hue: number; // drives the placeholder image color
-  lat: number; // map position (0-100 percent of the mock map)
-  lng: number;
+  lat: number; // latitude in degrees (approximate for the demo)
+  lng: number; // longitude in degrees
   agent: { name: string; agency: string; phone: string };
 }
 
