@@ -1,7 +1,7 @@
 /** GraphQL documents. Field names match backend/graphql/schema.graphql. */
 
 const LISTING = `id deal type title address city country price beds baths areaM2 plotM2 yearBuilt
-  isNew openHouse description features images lat lng agentId agentName agency phone createdAt updatedAt`;
+  isNew openHouse description features images lat lng suspended agentId agentName agency phone createdAt updatedAt`;
 
 const POOL = `id name listingId listingPrice goal raised maxMembers memberCount targetMonths status
   creatorId createdAt viewerIsMember
@@ -9,7 +9,8 @@ const POOL = `id name listingId listingPrice goal raised maxMembers memberCount 
   ledger { id userId amount note reference createdAt reversedAt reversalOf }
   proposals { id title detail createdBy createdAt yes no needed status myVote }`;
 
-const APPLICATION = `userId email name agency phone registrationNo country website about status reviewNote createdAt updatedAt reviewedAt`;
+const APPLICATION = `userId email name agency phone registrationNo country website about status reviewNote createdAt updatedAt reviewedAt
+  priorRevocationNote priorRevocationAt listingsHidden listingsFailed`;
 
 export const Q = {
   searchListings: `query Search($input: SearchListingsInput!) {
@@ -29,6 +30,8 @@ export const Q = {
   myAgentApplication: `query MyApp { myAgentApplication { success error data { ${APPLICATION} } } }`,
   submitAgentApplication: `mutation Apply($input: AgentApplicationInput!) { submitAgentApplication(input: $input) { success error data { ${APPLICATION} } } }`,
   agentApplications: `query Apps($status: ApplicationStatus!) { agentApplications(status: $status) { success error data { ${APPLICATION} } } }`,
+  revokeAgentAccess: `mutation Revoke($userId: ID!, $reason: String!, $hideListings: Boolean) {
+    revokeAgentAccess(userId: $userId, reason: $reason, hideListings: $hideListings) { success error data { ${APPLICATION} } } }`,
   reviewAgentApplication: `mutation Review($userId: ID!, $decision: ApplicationDecision!, $note: String) {
     reviewAgentApplication(userId: $userId, decision: $decision, note: $note) { success error data { ${APPLICATION} } } }`,
   geocodeAddress: `query Geo($query: String!) { geocodeAddress(query: $query) { success error data { label lat lng city country } } }`,

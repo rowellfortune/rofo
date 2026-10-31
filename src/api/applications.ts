@@ -23,3 +23,10 @@ export async function apiListApplications(status: AgentApplication['status']): P
 /** Admin: approve or reject. Rejection needs a note. Approval grants the Agent group. */
 export const apiReviewApplication = (userId: string, decision: 'APPROVED' | 'REJECTED', note?: string) =>
   transport.call<AgentApplication>('reviewAgentApplication', Q.reviewAgentApplication, { userId, decision, note: note ?? null }, 'userPool');
+
+/**
+ * Admin: take agent access away. The reason is required and is shown to the person.
+ * Optionally hides their listings. The response says how many were hidden or failed.
+ */
+export const apiRevokeAgent = (userId: string, reason: string, hideListings: boolean) =>
+  transport.call<AgentApplication>('revokeAgentAccess', Q.revokeAgentAccess, { userId, reason, hideListings }, 'userPool');

@@ -29,6 +29,7 @@ export interface Listing {
   agent: { name: string; agency: string; phone: string };
   images?: string[]; // photo URLs from the API. Missing in demo mode.
   imageKeys?: string[]; // S3 keys behind `images`, needed when editing a listing
+  suspended?: boolean; // hidden from the public (the agent was revoked). Only the owner and admins see it.
   createdAt?: string;
 }
 
@@ -121,9 +122,15 @@ export interface AgentApplication {
   country: string;
   website: string | null;
   about: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  reviewNote: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVOKED';
+  reviewNote: string | null; // for a revoked agent this is the reason
   createdAt: string;
   updatedAt: string;
   reviewedAt: string | null;
+  /** Set when this applicant lost access before. Shown to whoever reviews the new application. */
+  priorRevocationNote?: string | null;
+  priorRevocationAt?: string | null;
+  /** Only present on the response to a revoke. */
+  listingsHidden?: number | null;
+  listingsFailed?: number | null;
 }

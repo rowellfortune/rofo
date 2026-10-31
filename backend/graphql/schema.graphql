@@ -26,6 +26,7 @@ type Listing @aws_iam @aws_cognito_user_pools {
   images: [String!]!
   lat: Float
   lng: Float
+  suspended: Boolean
   agentId: ID!
   agentName: String!
   agency: String!
@@ -177,7 +178,7 @@ input PoolProposalInput {
 type GeoCandidate { label: String! lat: Float! lng: Float! city: String country: String }
 type GeocodeResult { success: Boolean! data: [GeoCandidate!] error: String }
 
-enum ApplicationStatus { PENDING APPROVED REJECTED }
+enum ApplicationStatus { PENDING APPROVED REJECTED REVOKED }
 enum ApplicationDecision { APPROVED REJECTED }
 
 type AgentApplication {
@@ -195,6 +196,10 @@ type AgentApplication {
   createdAt: AWSDateTime!
   updatedAt: AWSDateTime!
   reviewedAt: AWSDateTime
+  priorRevocationNote: String
+  priorRevocationAt: AWSDateTime
+  listingsHidden: Int
+  listingsFailed: Int
 }
 
 type ApplicationResult { success: Boolean! data: AgentApplication error: String }
@@ -231,6 +236,7 @@ type Mutation {
   toggleFavorite(listingId: ID!): BooleanResult @aws_cognito_user_pools
   sendInquiry(input: InquiryInput!): InquiryResult @aws_cognito_user_pools
   submitAgentApplication(input: AgentApplicationInput!): ApplicationResult @aws_cognito_user_pools
+  revokeAgentAccess(userId: ID!, reason: String!, hideListings: Boolean): ApplicationResult @aws_cognito_user_pools(cognito_groups: ["Admin"])
   reviewAgentApplication(userId: ID!, decision: ApplicationDecision!, note: String): ApplicationResult @aws_cognito_user_pools(cognito_groups: ["Admin"])
   createPool(input: CreatePoolInput!): PoolResult @aws_cognito_user_pools
   joinPool(poolId: ID!, monthly: Float!): BooleanResult @aws_cognito_user_pools

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
-  BatchGetCommand, DeleteCommand, GetCommand, PutCommand, QueryCommand,
+  BatchGetCommand, DeleteCommand, GetCommand, PutCommand, QueryCommand, UpdateCommand,
   type QueryCommandInput,
 } from '@aws-sdk/lib-dynamodb';
 import { z } from 'zod';
@@ -95,6 +95,8 @@ export async function updateListing(caller: Caller, id: string, raw: unknown) {
     agentName: existing.agentName as string,
     createdAt: existing.createdAt as string,
     updatedAt: new Date().toISOString(),
+    // Keep a hidden listing hidden. Only revocation and re-approval change this.
+    ...(existing.suspended ? { suspended: true, suspendedReason: existing.suspendedReason } : {}),
   };
   await ddb.send(new PutCommand({
     TableName: TABLE(),
@@ -157,7 +159,9 @@ export async function searchListings(input: SearchInput) {
 
   const names: Record<string, string> = {};
   const values: Record<string, unknown> = {};
-  const filters: string[] = [];
+  // Hidden listings (an agent was revoked) never show in public search.
+  const filters: string[] = ['attribute_not_exists(#sus)'];
+  names['#sus'] = 'suspended';
   if (input.type) { names['#t'] = 'type'; values[':t'] = input.type; filters.push('#t = :t'); }
   if (input.minPrice != null) { names['#p'] = 'price'; values[':minp'] = input.minPrice; filters.push('#p >= :minp'); }
   if (input.maxPrice != null) { names['#p'] = 'price'; values[':maxp'] = input.maxPrice; filters.push('#p <= :maxp'); }
@@ -174,7 +178,8 @@ export async function searchListings(input: SearchInput) {
         KeyConditionExpression: 'gsi2pk = :pk',
         ExpressionAttributeValues: { ...values, ':pk': `DEAL#${input.deal}` },
       };
-  if (filters.length) { base.FilterExpression = filters.join(' AND '); base.ExpressionAttributeNames = names; }
+  base.FilterExpression = filters.join(' AND ');
+  base.ExpressionAttributeNames = names;
 
   const items: Record<string, unknown>[] = [];
   let startKey = decodeToken(input.nextToken);
@@ -249,5 +254,44 @@ export async function myFavorites(caller: Caller) {
   const got = await ddb.send(new BatchGetCommand({
     RequestItems: { [TABLE()]: { Keys: ids.map(listingKey) } },
   }));
-  return (got.Responses?.[TABLE()] ?? []).map(stripKeys);
+  return (got.Responses?.[TABLE()] ?? []).filter((l) => !l.suspended).map(stripKeys);
+}
+
+// ---------- Hiding and restoring an agent's listings ----------
+
+const REVOCATION = 'revocation';
+
+/**
+ * Hide (or restore) every listing an agent owns. Used when access is revoked or granted again.
+ * Hiding sets `suspended` with a reason tag. Restoring only touches listings carrying the revocation tag,
+ * so anything hidden for another reason stays hidden. Works through every page, and one failed listing
+ * does not stop the rest: the counts say what happened.
+ */
+export async function setListingsSuspended(agentId: string, suspended: boolean): Promise<{ changed: number; failed: number }> {
+  let changed = 0, failed = 0;
+  let startKey: Record<string, unknown> | undefined;
+  do {
+    const page = await ddb.send(new QueryCommand({
+      TableName: TABLE(), IndexName: 'gsi3', KeyConditionExpression: 'gsi3pk = :pk',
+      ExpressionAttributeValues: { ':pk': `AGENT#${agentId}` }, ExclusiveStartKey: startKey,
+    }));
+    for (const item of page.Items ?? []) {
+      // Skip what is already in the wanted state, and what this feature does not own.
+      if (suspended ? item.suspended : item.suspendedReason !== REVOCATION) continue;
+      try {
+        await ddb.send(new UpdateCommand({
+          TableName: TABLE(), Key: { pk: item.pk, sk: item.sk },
+          UpdateExpression: suspended ? 'SET suspended = :t, suspendedReason = :r' : 'REMOVE suspended, suspendedReason',
+          ConditionExpression: suspended ? 'attribute_exists(pk)' : 'suspendedReason = :r',
+          ExpressionAttributeValues: suspended ? { ':t': true, ':r': REVOCATION } : { ':r': REVOCATION },
+        }));
+        changed++;
+      } catch (err) {
+        failed++;
+        console.error('Could not change listing visibility', item.id, (err as Error).message);
+      }
+    }
+    startKey = page.LastEvaluatedKey;
+  } while (startKey);
+  return { changed, failed };
 }

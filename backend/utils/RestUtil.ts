@@ -21,6 +21,20 @@ export function getSub(event: APIGatewayProxyEventV2WithJWTAuthorizer): string {
 }
 
 /**
+ * Turn the groups claim from API Gateway into a list.
+ * A JWT authorizer hands arrays over as text, for example "[Agent Admin]", "Agent" or "Agent,Admin".
+ */
+export function parseGroups(claim: unknown): string[] {
+  if (Array.isArray(claim)) return claim.map(String);
+  if (typeof claim !== 'string') return [];
+  return claim.replace(/^\[|\]$/g, '').split(/[\s,]+/).map((g) => g.replace(/^["']|["']$/g, '')).filter(Boolean);
+}
+
+/** Groups of the signed in user, read from the JWT authorizer. */
+export const getGroups = (event: APIGatewayProxyEventV2WithJWTAuthorizer): string[] =>
+  parseGroups(event.requestContext.authorizer?.jwt?.claims?.['cognito:groups']);
+
+/**
  * Wrap a Lambda so it returns HTTP JSON with CORS and consistent errors.
  * Success: 200 { success: true, data }. Failure: { success: false, error }.
  */
@@ -38,4 +52,4 @@ function restHandler<TData>(
   };
 }
 
-export const RestUtil = { restHandler, getSub, json };
+export const RestUtil = { restHandler, getSub, getGroups, json };

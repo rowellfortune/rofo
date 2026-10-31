@@ -36,8 +36,8 @@ Stage names must be lowercase letters and digits. The images bucket name is buil
   ```bash
   npm run build              # app typecheck + production build
   npm run typecheck:backend  # backend, infra and tests
-  npm run test:frontend      # 24 tests
-  npm run test:backend       # 24 tests
+  npm run test:frontend      # 28 tests
+  npm run test:backend       # 43 tests
   ```
 
 ## 3. Decide before you deploy
@@ -155,6 +155,27 @@ Run in order. Each line says what to expect. Tick it only when you saw it.
 
 Test 18 to 21 change money records. Run them on `dev` with made up amounts. A real payment reference should come from escrow or the bank, never be invented.
 
+Revoking agent access. Use a throwaway agent account that has at least one listing, and keep a second browser signed in as that agent.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 22 | Admin: **Applications**, **Approved** tab, **Revoke access** on the agent | The confirm button stays disabled until a reason is typed. "Hide their listings" is ticked. |
+| 23 | Confirm | Notice: "Access revoked for NAME. N listings hidden." The row moves to the **Revoked** tab with the reason. |
+| 24 | Signed out, open `/search` and the revoked agent's listing page | Their listings are gone from search. Their page says "Property not found". |
+| 25 | In the agent's still open browser, reload `/agent` | Within a few seconds it shows **Agent access needed**. This is the stale token case. |
+| 26 | In that browser, `/agent/apply` | Shows "Your agent access was removed" with the reason, the form is prefilled, the button says **Apply again** |
+| 27 | Submit. Admin opens the **Pending** tab. | The new application carries a warning, "Lost agent access before", with the old reason |
+| 28 | Admin approves. Agent clicks **Activate agent access**. | Dashboard opens, the listings show again and none say **Hidden** |
+
+Then confirm the block works at the database, not only in the screens. After step 23, before step 27:
+
+```bash
+aws dynamodb get-item --table-name <tableName> \
+  --key '{"pk":{"S":"REVOKED#<agent sub>"},"sk":{"S":"META"}}'
+aws cognito-idp admin-list-groups-for-user --user-pool-id <userPoolId> --username agent@example.com
+```
+Expect an item with `reason` and `revokedAt`, and no `Agent` in the groups. After step 28 the item is gone.
+
 - [ ] **Confirm backups and log retention are really on.** These come from `infra/policy.ts`.
   ```bash
   aws dynamodb describe-continuous-backups --table-name <tableName> \
@@ -229,6 +250,21 @@ aws dynamodb wait table-exists --table-name <tableName>-restore
 
 Then inspect the restored table, copy the needed items into the live table (a scan and batch write script, written for the job), and delete `<tableName>-restore` when done. Some settings such as TTL and backup settings are not copied to the restored table, which does not matter for a temporary table. Rehearse this once on `dev` so the first time is not during an incident.
 
+### Revoking an agent who was added by hand
+
+The Revoke button needs an application record. For someone you added with the CLI, do it yourself, in this order:
+
+```bash
+# 1. block them at once, even though their token still says Agent
+aws dynamodb put-item --table-name <tableName> \
+  --item '{"pk":{"S":"REVOKED#<sub>"},"sk":{"S":"META"},"reason":{"S":"removed by hand"}}'
+# 2. take the group and end their sessions
+aws cognito-idp admin-remove-user-from-group --user-pool-id <userPoolId> --username <email> --group-name Agent
+aws cognito-idp admin-user-global-sign-out --user-pool-id <userPoolId> --username <email>
+```
+Their listings stay public. To hide them, set `suspended` and `suspendedReason` to `revocation` on each item, or delete the listings.
+Without step 1, an existing token keeps working until it expires (Cognito's default is one hour).
+
 ## 12. Rolling back
 
 - **Frontend:** Vercel, Deployments, pick a good one, Promote to Production. Instant.
@@ -249,6 +285,9 @@ Then inspect the restored table, copy the needed items into the live table (a sc
 | Photo upload fails, CORS error in the browser console | `WEB_ORIGIN` does not match the site origin | Fix the env var and redeploy the stage |
 | Photo uploads but the image 403s | CloudFront still propagating, or wrong `VITE_CDN_URL` | Wait a few minutes. Compare with the `cdnUrl` output. |
 | New user has no group | Post confirmation trigger failed | Check its log group. Fix by hand: `admin-add-user-to-group ... --group-name Client` |
+| Revoked agent can still publish | The block item is missing, or the Lambda is old | Check the `REVOKED#<sub>` item exists (command above). Check the resolver Lambda logs for the revoke. Redeploy if the block check is not in the running version. |
+| Revoke says "Could not remove agent access" | Lambda lacks `AdminRemoveUserFromGroup` or `AdminUserGlobalSignOut`, or `USER_POOL_ID` is wrong | Check the Lambda role and env. Nothing was changed, so retry after fixing. |
+| Revoke says "No application found" | The agent was added by hand in Cognito, so there is no application to revoke | Use the manual steps in section 11 |
 | Approved user still sees "List a property" | Token still has the old groups | Click **Activate agent access**, or sign out and in |
 | Approve returns "Could not grant agent access" | Lambda lacks the IAM action or `USER_POOL_ID` | Check the resolver Lambda's permissions and env. The application stays Pending, so retry after the fix. |
 | Address search says "unavailable" | Nominatim blocked or rate limited the call | Check the log. Set a real `GEOCODE_USER_AGENT`, or add a MapTiler key. The agent can always click the map. |
@@ -260,7 +299,9 @@ Then inspect the restored table, copy the needed items into the live table (a sc
 ## 14. Known gaps (do not look for these)
 
 - No email to applicants or buyers. Status shows in the app only.
-- No way to revoke agent access in the app. Remove the group in Cognito by hand.
+- Agents added by hand in Cognito have no application, so the Revoke button cannot see them. Use the manual steps in section 11.
+- Hidden listings cannot be un-hidden one by one. They return when the agent is approved again.
+- Revoking someone who is also an Admin changes nothing. Admin rights come from the Admin group. Remove that by hand.
 - Recording a payment is manual (admin types it in). Nothing receives escrow or bank notifications yet. A webhook can call the same API later.
 - No vote deadline, and a passed proposal triggers nothing. Votes are a record of the group's decision.
 - No payments. Pools track commitments, not money.

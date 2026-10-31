@@ -6,7 +6,7 @@ export interface ApiListing {
   id: string; deal: 'buy' | 'rent'; type: Listing['type']; title: string; address: string; city: string;
   country: string; price: number; beds: number; baths: number; areaM2: number; plotM2?: number | null;
   yearBuilt?: number | null; isNew: boolean; openHouse?: string | null; description: string;
-  features: string[]; images: string[]; lat?: number | null; lng?: number | null;
+  features: string[]; images: string[]; lat?: number | null; lng?: number | null; suspended?: boolean | null;
   agentId: string; agentName: string; agency: string; phone: string; createdAt: string;
 }
 
@@ -49,7 +49,7 @@ export function toListing(a: ApiListing): Listing {
     description: a.description, features: a.features, hue: hueFromId(a.id),
     lat: a.lat ?? NaN, lng: a.lng ?? NaN,
     agent: { name: a.agentName, agency: a.agency, phone: a.phone },
-    images: a.images.map(imageUrl), imageKeys: a.images, createdAt: a.createdAt,
+    images: a.images.map(imageUrl), imageKeys: a.images, suspended: Boolean(a.suspended), createdAt: a.createdAt,
   };
 }
 

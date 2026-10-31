@@ -91,6 +91,7 @@ export async function createPool(caller: Caller, raw: unknown) {
 
   const listing = await loadListing(input.listingId);
   if (listing.deal !== 'buy') throw new AppError('Pools are for homes for sale', 400);
+  if (listing.suspended) throw new AppError('Listing not found', 404); // hidden listings cannot start pools
 
   const id = randomUUID();
   const createdAt = new Date().toISOString();
@@ -238,6 +239,9 @@ export async function reverseContribution(caller: Caller, poolId: string, entryI
   if (entry.reversedAt) throw new AppError('This payment was already reversed', 409);
 
   const now = new Date().toISOString();
+  // The ledger sorts by time. Make the reversal strictly later than the payment it undoes, so it can never
+  // be listed before it, even if both happen in the same millisecond.
+  const when = new Date(Math.max(Date.now(), Date.parse(entry.createdAt) + 1)).toISOString();
   const revId = randomUUID();
   try {
     await ddb.send(new TransactWriteCommand({
@@ -245,7 +249,7 @@ export async function reverseContribution(caller: Caller, poolId: string, entryI
         { Update: { TableName: TABLE(), Key: { pk: entry.pk, sk: entry.sk }, UpdateExpression: 'SET reversedAt = :at, reversedBy = :by', ConditionExpression: 'attribute_not_exists(reversedAt)', ExpressionAttributeValues: { ':at': now, ':by': caller.sub } } },
         { Update: { TableName: TABLE(), Key: memberKey(poolId, entry.userId), UpdateExpression: 'SET contributed = contributed - :a', ConditionExpression: 'contributed >= :a', ExpressionAttributeValues: { ':a': entry.amount } } },
         { Update: { TableName: TABLE(), Key: poolKey(poolId), UpdateExpression: 'SET raised = raised - :a', ConditionExpression: 'raised >= :a', ExpressionAttributeValues: { ':a': entry.amount } } },
-        { Put: { TableName: TABLE(), Item: { pk: `POOL#${poolId}`, sk: `LEDGER#${now}#${revId}`, entity: 'POOL_LEDGER', id: revId, poolId, userId: entry.userId, amount: -entry.amount, reference: `reversal of ${entry.reference ?? entry.id}`, reversalOf: entry.id, note: why.slice(0, 120), recordedBy: caller.sub, createdAt: now } } },
+        { Put: { TableName: TABLE(), Item: { pk: `POOL#${poolId}`, sk: `LEDGER#${when}#${revId}`, entity: 'POOL_LEDGER', id: revId, poolId, userId: entry.userId, amount: -entry.amount, reference: `reversal of ${entry.reference ?? entry.id}`, reversalOf: entry.id, note: why.slice(0, 120), recordedBy: caller.sub, createdAt: when } } },
       ],
     }));
   } catch (err) {

@@ -36,3 +36,9 @@ export function buildApplication(f: ApplicationForm): { ok: true; input: Applica
     },
   };
 }
+
+/** An applicant may apply again after a rejection or after losing access. */
+export const canReapply = (status: AgentApplication['status']): boolean => status === 'REJECTED' || status === 'REVOKED';
+
+/** True when an API error means the agent's access was just taken away. */
+export const isRevokedError = (message: string): boolean => /agent access was revoked/i.test(message);

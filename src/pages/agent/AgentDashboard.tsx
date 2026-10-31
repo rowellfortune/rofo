@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiDeleteListing, apiMyListings } from '../../api/agent';
 import { formatPrice } from '../../lib/format';
+import { isRevokedError } from '../../lib/applicationForm';
+import { useAuth } from '../../state/AuthContext';
 import type { Listing } from '../../types';
 
 /** The agent's listings with quick actions. */
@@ -9,10 +11,17 @@ export function AgentDashboard() {
   const [items, setItems] = useState<Listing[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const { refresh } = useAuth();
+
+  /** Show an error. If it says access was revoked, refresh the session so the page drops to "access needed". */
+  const fail = useCallback((e: Error) => {
+    setError(isRevokedError(e.message) ? 'Your agent access was removed. Updating your account...' : e.message);
+    if (isRevokedError(e.message)) void refresh().catch(() => {});
+  }, [refresh]);
 
   const load = useCallback(() => {
-    apiMyListings().then(setItems).catch((e: Error) => setError(e.message));
-  }, []);
+    apiMyListings().then(setItems).catch(fail);
+  }, [fail]);
   useEffect(load, [load]);
 
   /** Delete after a confirmation. Favorites pointing at it are skipped on read by the API. */
@@ -22,7 +31,7 @@ export function AgentDashboard() {
     try {
       await apiDeleteListing(l.id);
       setItems((all) => (all ?? []).filter((x) => x.id !== l.id));
-    } catch (e) { setError((e as Error).message); } finally { setBusyId(null); }
+    } catch (e) { fail(e as Error); } finally { setBusyId(null); }
   };
 
   const noCoords = (items ?? []).filter((l) => !Number.isFinite(l.lat)).length;
@@ -57,7 +66,8 @@ export function AgentDashboard() {
             {items.map((l) => (
               <tr key={l.id}>
                 <td>
-                  <Link to={`/property/${l.id}`}><strong>{l.address}</strong></Link>
+                  {l.suspended ? <strong>{l.address}</strong> : <Link to={`/property/${l.id}`}><strong>{l.address}</strong></Link>}
+                  {l.suspended && <span className="chip-status bad" title="Hidden from the public">Hidden</span>}
                   <div className="muted small">{l.city}, {l.country} · {l.deal === 'buy' ? 'For sale' : 'For rent'}</div>
                 </td>
                 <td>{l.type}</td>

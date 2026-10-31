@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiMyApplication, apiSubmitApplication } from '../../api/applications';
-import { applicationToForm, buildApplication, emptyApplication, type ApplicationErrors, type ApplicationForm } from '../../lib/applicationForm';
+import { applicationToForm, buildApplication, canReapply, emptyApplication, type ApplicationErrors, type ApplicationForm } from '../../lib/applicationForm';
 import { useAuth } from '../../state/AuthContext';
 import { isAgent } from '../../components/RequireAgent';
 import type { AgentApplication } from '../../types';
@@ -26,7 +26,7 @@ export function ApplyAgent() {
   useEffect(() => {
     if (!enabled || !user) return;
     apiMyApplication()
-      .then((a) => { setApp(a); if (a?.status === 'REJECTED') setForm(applicationToForm(a)); })
+      .then((a) => { setApp(a); if (a && canReapply(a.status)) setForm(applicationToForm(a)); })
       .catch((e: Error) => { setApp(null); setBanner(e.message); });
   }, [enabled, user]);
 
@@ -79,7 +79,7 @@ export function ApplyAgent() {
   );
 
   // Pending or approved: show status instead of the form.
-  if (app && app.status !== 'REJECTED') {
+  if (app && !canReapply(app.status)) {
     return (
       <div className="container detail">
         <div className="form-card status-card">
@@ -116,6 +116,9 @@ export function ApplyAgent() {
         {app?.status === 'REJECTED' && (
           <div className="notice" role="status"><strong>Your last application was not approved.</strong> {app.reviewNote} You can fix it and apply again.</div>
         )}
+        {app?.status === 'REVOKED' && (
+          <div className="notice" role="status"><strong>Your agent access was removed.</strong> {app.reviewNote} You can apply again. An admin will see this history when they review it.</div>
+        )}
         {banner && <div className="notice" role="alert">{banner}</div>}
         <section className="form-card wide">
           <h3>About you</h3>
@@ -135,7 +138,7 @@ export function ApplyAgent() {
           </label>
         </section>
         <div className="editor-actions">
-          <button className="btn btn-primary btn-lg" type="submit" disabled={busy}>{busy ? 'Sending...' : app?.status === 'REJECTED' ? 'Apply again' : 'Submit application'}</button>
+          <button className="btn btn-primary btn-lg" type="submit" disabled={busy}>{busy ? 'Sending...' : app && canReapply(app.status) ? 'Apply again' : 'Submit application'}</button>
         </div>
       </form>
     </div>

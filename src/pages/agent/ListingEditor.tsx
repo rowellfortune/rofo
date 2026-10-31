@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { apiCreateListing, apiGeocode, apiUpdateListing } from '../../api/agent';
 import { apiGetListing } from '../../api/listings';
 import { checkImage, uploadImage } from '../../api/upload';
+import { isRevokedError } from '../../lib/applicationForm';
+import { useAuth } from '../../state/AuthContext';
 import { applyCandidate, buildListingInput, emptyForm, geocodeQuery, listingToForm, type FormErrors, type ListingForm } from '../../lib/listingForm';
 import type { GeoCandidate, PropertyType } from '../../types';
 
@@ -41,6 +43,14 @@ export function ListingEditor() {
   const [banner, setBanner] = useState<string | null>(null);
   const [uploading, setUploading] = useState(0); // files in flight
   const fileInput = useRef<HTMLInputElement>(null);
+  const { refresh } = useAuth();
+
+  /** Show an error. If access was revoked, refresh the session so the guard takes over. */
+  const showError = (e: Error) => {
+    const revoked = isRevokedError(e.message);
+    setBanner(revoked ? 'Your agent access was removed. Updating your account...' : e.message);
+    if (revoked) void refresh().catch(() => {});
+  };
   // Address search state: null = not searched yet, [] = searched with no results.
   const [places, setPlaces] = useState<GeoCandidate[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -98,7 +108,7 @@ export function ListingEditor() {
         const preview = URL.createObjectURL(file);
         setForm((f) => ({ ...f, images: [...f.images, { key, preview }] }));
       } catch (e) {
-        setBanner((e as Error).message);
+        showError(e as Error);
       } finally { setUploading((n) => n - 1); }
     }
     if (fileInput.current) fileInput.current.value = '';
@@ -125,7 +135,7 @@ export function ListingEditor() {
       localStorage.setItem(PROFILE_KEY, JSON.stringify({ agency: res.input.agency, phone: res.input.phone }));
       navigate('/agent');
     } catch (err) {
-      setBanner((err as Error).message);
+      showError(err as Error);
     } finally { setSaving(false); }
   };
 

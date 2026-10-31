@@ -6,7 +6,9 @@ import * as Q from '../lib/inquiries';
 import * as P from '../lib/pools';
 import { geocode } from '../lib/geocode';
 import * as A from '../lib/applications';
-import { AdminAddUserToGroupCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+import {
+  AdminAddUserToGroupCommand, AdminRemoveUserFromGroupCommand, AdminUserGlobalSignOutCommand, CognitoIdentityProviderClient,
+} from '@aws-sdk/client-cognito-identity-provider';
 import { Resource } from 'sst';
 
 const AGENT_GROUPS = ['Agent', 'Admin'];
@@ -20,6 +22,14 @@ const appDeps: A.ApplicationDeps = {
     // The user pool uses email as the username, but AdminAddUserToGroup accepts the sub too.
     await cognito.send(new AdminAddUserToGroupCommand({ UserPoolId: process.env.USER_POOL_ID!, Username: userId, GroupName: 'Agent' }));
   },
+  removeFromAgentGroup: async (userId) => {
+    await cognito.send(new AdminRemoveUserFromGroupCommand({ UserPoolId: process.env.USER_POOL_ID!, Username: userId, GroupName: 'Agent' }));
+    // End their sessions so no refresh token can mint a new token. The block marker covers the tokens already issued.
+    await cognito.send(new AdminUserGlobalSignOutCommand({ UserPoolId: process.env.USER_POOL_ID!, Username: userId }))
+      .catch((e: Error) => console.error('Global sign out failed. The block marker still applies.', userId, e.message));
+  },
+  hideListings: (userId) => L.setListingsSuspended(userId, true),
+  restoreListings: (userId) => L.setListingsSuspended(userId, false),
 };
 
 /** MapTiler key from the SST secret. Empty string means use the keyless Nominatim provider. */
@@ -35,8 +45,10 @@ async function route(event: AppSyncResolverEvent<any>) {
   switch (fieldName) {
     // Public (guest or signed in)
     case 'getListing': {
-      const { pk, sk, gsi1pk, gsi1sk, gsi2pk, gsi2sk, gsi3pk, gsi3sk, entity, ...rest } = await L.loadListing(args.id);
-      void [pk, sk, gsi1pk, gsi1sk, gsi2pk, gsi2sk, gsi3pk, gsi3sk, entity];
+      const found = await L.loadListing(args.id);
+      if (found.suspended) throw new AppError('Listing not found', 404); // hidden listings look like they do not exist
+      const { pk, sk, gsi1pk, gsi1sk, gsi2pk, gsi2sk, gsi3pk, gsi3sk, entity, suspendedReason, ...rest } = found;
+      void [pk, sk, gsi1pk, gsi1sk, gsi2pk, gsi2sk, gsi3pk, gsi3sk, entity, suspendedReason];
       return rest;
     }
     case 'searchListings':
@@ -44,23 +56,23 @@ async function route(event: AppSyncResolverEvent<any>) {
 
     // Agent or Admin
     case 'createListing': {
-      const c = getCaller(event); requireGroup(c, AGENT_GROUPS);
+      const c = getCaller(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
       return L.createListing(c, args.input);
     }
     case 'updateListing': {
-      const c = getCaller(event); requireGroup(c, AGENT_GROUPS);
+      const c = getCaller(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
       return L.updateListing(c, args.id, args.input);
     }
     case 'deleteListing': {
-      const c = getCaller(event); requireGroup(c, AGENT_GROUPS);
+      const c = getCaller(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
       return L.deleteListing(c, args.id);
     }
     case 'myListings': {
-      const c = getCaller(event); requireGroup(c, AGENT_GROUPS);
+      const c = getCaller(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
       return L.myListings(c);
     }
     case 'listingInquiries': {
-      const c = getCaller(event); requireGroup(c, AGENT_GROUPS);
+      const c = getCaller(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
       return Q.listingInquiries(c, args.listingId);
     }
 
@@ -81,6 +93,10 @@ async function route(event: AppSyncResolverEvent<any>) {
       const c = getCaller(event); requireGroup(c, ['Admin']);
       return A.listApplications(c, args.status);
     }
+    case 'revokeAgentAccess': {
+      const c = getCaller(event); requireGroup(c, ['Admin']);
+      return A.revokeAgent(c, args.userId, args.reason, args.hideListings ?? true, appDeps);
+    }
     case 'reviewAgentApplication': {
       const c = getCaller(event); requireGroup(c, ['Admin']);
       return A.reviewApplication(c, args.userId, args.decision, args.note, appDeps);
@@ -88,7 +104,7 @@ async function route(event: AppSyncResolverEvent<any>) {
 
     // Address search for the listing editor (agents only). The key stays on the server.
     case 'geocodeAddress': {
-      const c = getCaller(event); requireGroup(c, AGENT_GROUPS);
+      const c = getCaller(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
       return geocode(args.query, {
         fetch,
         apiKey: mapTilerKey(),

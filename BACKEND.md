@@ -102,3 +102,23 @@ Details, how to verify after deploy, and how to restore are in [DEPLOY.md](./DEP
   A proposal passes at more than half of the members voting yes. Nothing happens automatically when it passes.
 - Screens: `/pools/:id` has New proposal, vote buttons with a threshold bar, a payments list, a member summary,
   and for admins a record payment form and a Reverse button on each payment.
+
+## Revoking agent access
+
+`revokeAgentAccess(userId, reason, hideListings)`, Admin only. Screen: `/admin/applications`, Approved tab, **Revoke access**.
+
+Order of steps (`backend/lib/applications.ts`, `revokeAgent`):
+1. One transaction marks the application `REVOKED` (only if it was `APPROVED`) and writes a block item `pk=REVOKED#<userId>`.
+2. Cognito: remove the `Agent` group and end the user's sessions. If this fails, step 1 is undone and nothing changes.
+3. Optionally hide the agent's listings (`suspended` on each listing). A failure here does not undo the revoke. The response says how many were hidden or failed.
+
+Why the block item exists: the user's current token still lists the Agent group for up to an hour, and AppSync trusts the token.
+Every agent only call (create, update, delete, my listings, inquiries, address search) and the photo upload endpoint check the block item first.
+One extra read per call. Admins are never blocked.
+
+Photo upload (`POST /uploads/presign`) now requires the Agent or Admin group. Before this it accepted any signed in user.
+
+Hidden listings: not in search, not readable by the public, skipped in saved lists, cannot start a pool. The owner still sees them (marked Hidden) and an edit does not un-hide them.
+Approving the person again removes the block and brings back the listings that revocation hid. Listings hidden for any other reason stay hidden.
+
+A revoked person can apply again. The next reviewer sees the earlier reason.

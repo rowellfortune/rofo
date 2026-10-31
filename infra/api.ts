@@ -23,8 +23,8 @@ const resolverFn = new sst.aws.Function('GraphqlResolver', {
     GEOCODE_USER_AGENT: process.env.GEOCODE_USER_AGENT ?? 'rofo-estate/1.0',
     USER_POOL_ID: userPool.id, // used to add approved applicants to the Agent group
   },
-  // Only this one action, only on this user pool.
-  permissions: [{ actions: ['cognito-idp:AdminAddUserToGroup'], resources: [userPool.arn] }],
+  // Only these actions, only on this user pool.
+  permissions: [{ actions: ['cognito-idp:AdminAddUserToGroup', 'cognito-idp:AdminRemoveUserFromGroup', 'cognito-idp:AdminUserGlobalSignOut'], resources: [userPool.arn] }],
 });
 
 export const graphql = new aws.appsync.GraphQLApi('Graphql', {
@@ -64,7 +64,7 @@ const dataSource = new aws.appsync.DataSource('GraphqlLambda', {
 // Direct Lambda resolvers (no VTL). Field list must match schema.graphql.
 const fields: Record<'Query' | 'Mutation', string[]> = {
   Query: ['getListing', 'searchListings', 'myListings', 'myFavorites', 'listingInquiries', 'myAgentApplication', 'agentApplications', 'geocodeAddress', 'listPools', 'getPool', 'myPools'],
-  Mutation: ['createListing', 'updateListing', 'deleteListing', 'toggleFavorite', 'sendInquiry', 'submitAgentApplication', 'reviewAgentApplication',
+  Mutation: ['createListing', 'updateListing', 'deleteListing', 'toggleFavorite', 'sendInquiry', 'submitAgentApplication', 'reviewAgentApplication', 'revokeAgentAccess',
     'createPool', 'joinPool', 'leavePool', 'createPoolProposal', 'votePoolProposal', 'recordPoolContribution', 'reversePoolContribution'],
 };
 (Object.entries(fields) as ['Query' | 'Mutation', string[]][]).forEach(([type, names]) => {
@@ -104,7 +104,7 @@ rest.route(
   'POST /uploads/presign',
   {
     handler: 'backend/rest/presign.handler',
-    link: [images],
+    link: [images, table], // the table is read to check an agent has not been revoked
     environment: { ALLOWED_ORIGIN: allowOrigin },
   },
   { auth: { jwt: { authorizer: jwt.id } } },
