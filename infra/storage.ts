@@ -1,4 +1,5 @@
 /// <reference path="../.sst/platform/config.d.ts" />
+import { pointInTimeRecovery, tableDeletionProtection } from './policy';
 
 /**
  * Single DynamoDB table (Single Table Design).
@@ -22,6 +23,11 @@ export const table = new sst.aws.Dynamo('Table', {
   },
   primaryIndex: { hashKey: 'pk', rangeKey: 'sk' },
   ttl: 'ttl', // expires cached geocoding results
+  deletionProtection: tableDeletionProtection($app.stage), // production table cannot be deleted
+  transform: {
+    // Pin point in time recovery. SST enables it today, this keeps it on if that default ever changes.
+    table: (args) => { args.pointInTimeRecovery = { enabled: pointInTimeRecovery($app.stage) }; },
+  },
   globalIndexes: {
     gsi1: { hashKey: 'gsi1pk', rangeKey: 'gsi1sk' },
     gsi2: { hashKey: 'gsi2pk', rangeKey: 'gsi2sk' },

@@ -37,7 +37,7 @@ Stage names must be lowercase letters and digits. The images bucket name is buil
   npm run build              # app typecheck + production build
   npm run typecheck:backend  # backend, infra and tests
   npm run test:frontend      # 18 tests
-  npm run test:backend       # 13 tests
+  npm run test:backend       # 19 tests
   ```
 
 ## 3. Decide before you deploy
@@ -155,6 +155,14 @@ Expect `success: true`, and the member's share changes on the pool page. The sam
 
 There is also no screen to create a vote, so voting cannot be tested from the UI yet.
 
+- [ ] **Confirm backups and log retention are really on.** These come from `infra/policy.ts`.
+  ```bash
+  aws dynamodb describe-continuous-backups --table-name <tableName> \
+    --query 'ContinuousBackupsDescription.PointInTimeRecoveryDescription.PointInTimeRecoveryStatus'
+  aws dynamodb describe-table --table-name <tableName> --query 'Table.DeletionProtectionEnabled'
+  aws logs describe-log-groups --query "logGroups[?contains(logGroupName, 'rofo-<stage>')].[logGroupName,retentionInDays]" --output table
+  ```
+  Expect `"ENABLED"`. Expect `false` on dev and `true` on production. Expect every log group to show `7` on dev and `90` on production. A blank value means the group never expires, so report it.
 - [ ] **Check the logs for errors.** Any smoke test that failed quietly shows up here.
   ```bash
   aws logs describe-log-groups --log-group-name-prefix /aws/lambda/rofo-dev --query 'logGroups[].logGroupName'
@@ -182,25 +190,53 @@ The Vercel connection used in earlier sessions cannot create projects in `tunecr
 Do these before you let anyone outside your team sign up.
 
 - [ ] **Email.** Move Cognito to Amazon SES. The default sender is limited and unreliable for real sign ups.
-- [ ] **Backups.** Turn on DynamoDB point in time recovery for `production`. It is not enabled now.
+- [ ] **Practise a restore once** on `dev` (steps in the next section). A backup you never restored is a guess.
 - [ ] **Abuse limits.** There is no WAF or rate limiting on AppSync or the REST API yet. Add AWS WAF before launch.
 - [ ] **Alarms and budget.** Create an AWS Budget alert and CloudWatch alarms for Lambda errors and AppSync 5xx.
-- [ ] **Log retention.** Lambda logs never expire by default. Set a retention period.
 - [ ] **Admins use MFA.** The pool allows optional MFA. Turn it on for admin accounts.
 - [ ] **Pools and money.** The app records pooled contributions but moves no money. Do not accept real contributions until a lawyer has approved the co-ownership agreement, and an escrow or trustee holds the funds.
 - [ ] **Legal pages.** Privacy and terms links in the footer go nowhere yet.
 - [ ] **Custom domain** for the site, and update `WEB_ORIGIN` to match.
 - [ ] **Geocoding.** Real contact in `GEOCODE_USER_AGENT`. Consider MapTiler for volume.
 - [ ] **Remove test accounts** and the seeded data. Seeding is blocked on `production`, so it only matters if you copied data over.
-- [ ] **Know what `protect` means.** `production` keeps its data and cannot be removed by `sst remove`. That is intended.
+- [ ] **Know what `protect` means.** `production` keeps its data on removal, and its table has deletion protection on. Removing it takes two deliberate steps (see Rolling back). That is intended.
 
-## 11. Rolling back
+## 11. Backups and logs (already configured)
+
+Set in `infra/policy.ts`. Change a value there and redeploy.
+
+| What | dev | production |
+| --- | --- | --- |
+| DynamoDB point in time recovery (restore to any second in the last 35 days) | on | on |
+| Table deletion protection | off | **on** |
+| Lambda and API access log retention | 7 days | 90 days |
+
+What this covers, and what it does not:
+
+- Point in time recovery covers bad writes and deleted items, for example a buggy release or a mistaken delete. It does **not** cover someone deleting the whole table. Deletion protection is what guards against that.
+- The images bucket is not versioned. The app never overwrites or deletes photos, and `production` keeps the bucket on removal. If agents will upload irreplaceable originals, turn on versioning first.
+- Auth data lives in Cognito, not DynamoDB. User accounts are not backed up by this. Losing the user pool means losing every account.
+- AppSync request logging is **not** enabled. Lambda errors are logged. Requests refused before reaching a Lambda (for example an expired token) leave no log.
+
+**Restoring.** A restore always creates a new table. It does not overwrite the live one. The live table name is wired into the app by SST, so the practical path is to copy items back:
+
+```bash
+aws dynamodb restore-table-to-point-in-time \
+  --source-table-name <tableName> --target-table-name <tableName>-restore \
+  --restore-date-time 2026-01-31T09:00:00Z      # or: --use-latest-restorable-time
+aws dynamodb wait table-exists --table-name <tableName>-restore
+```
+
+Then inspect the restored table, copy the needed items into the live table (a scan and batch write script, written for the job), and delete `<tableName>-restore` when done. Some settings such as TTL and backup settings are not copied to the restored table, which does not matter for a temporary table. Rehearse this once on `dev` so the first time is not during an incident.
+
+## 12. Rolling back
 
 - **Frontend:** Vercel, Deployments, pick a good one, Promote to Production. Instant.
 - **Backend:** check out the last good commit and redeploy: `git checkout <sha> && npx sst deploy --stage production`.
 - **Tear down `dev`:** `npx sst remove --stage dev`. This deletes the table and its data and empties the bucket. Fine for dev, never for production.
+- **Remove `production` on purpose:** this is two steps by design. First set `tableDeletionProtection` to `false` in `infra/policy.ts` and deploy. Then remove. `sst remove` keeps the data (retain) unless you delete the table yourself. Take a restore or export first.
 
-## 12. Troubleshooting
+## 13. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
@@ -217,13 +253,16 @@ Do these before you let anyone outside your team sign up.
 | Approve returns "Could not grant agent access" | Lambda lacks the IAM action or `USER_POOL_ID` | Check the resolver Lambda's permissions and env. The application stays Pending, so retry after the fix. |
 | Address search says "unavailable" | Nominatim blocked or rate limited the call | Check the log. Set a real `GEOCODE_USER_AGENT`, or add a MapTiler key. The agent can always click the map. |
 | Map is blank | The OpenFreeMap style is unreachable | Set `VITE_MAP_STYLE` to another style URL |
+| `sst remove --stage production` fails on the table | Deletion protection is on | Intended. See Rolling back for the two step removal. |
+| A log group shows no retention | Created outside SST, or the transform did not apply | Run `npm run test:backend`. It checks the transforms are registered before any component. Set the retention by hand in CloudWatch as a stopgap. |
 | Sign up code never arrives | Spam folder, or the Cognito email limit | Use `admin-confirm-sign-up` |
 
-## 13. Known gaps (do not look for these)
+## 14. Known gaps (do not look for these)
 
 - No email to applicants or buyers. Status shows in the app only.
 - No way to revoke agent access in the app. Remove the group in Cognito by hand.
 - No screen to create a pool vote or record a contribution. Both exist in the API only.
 - No payments. Pools track commitments, not money.
+- No AppSync request logging, and no backup of Cognito accounts.
 - Listing drafts and unpublish are not built. Deleting is permanent.
 - Search text matching (city, address) runs in the browser on the first 50 results per deal.

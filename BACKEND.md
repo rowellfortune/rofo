@@ -84,3 +84,9 @@ approval adds the user to the `Agent` group, and the applicant clicks "Activate 
 `aws cognito-idp admin-add-user-to-group --user-pool-id <id> --username <email> --group-name Admin`
 
 Then sign out and in. Not built yet: email to the applicant on a decision (needs SES), revoking agent access, and the applicant's license document upload.
+
+## Backups and logs
+
+Policy lives in `infra/policy.ts`: point in time recovery on for every stage, table deletion protection on `production`,
+log retention 7 days on dev and 90 days on `production` (Lambda and API access logs).
+Details, how to verify after deploy, and how to restore are in [DEPLOY.md](./DEPLOY.md) section 11.

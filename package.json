@@ -12,7 +12,7 @@
     "sst:dev": "sst dev",
     "deploy:prod": "sst deploy --stage production",
     "seed": "sst shell --stage dev -- tsx backend/scripts/seed.ts",
-    "test:backend": "SST_RESOURCE_Table={\\\"name\\\":\\\"test-table\\\"} SST_RESOURCE_App={\\\"name\\\":\\\"rofo\\\",\\\"stage\\\":\\\"test\\\"} tsx --test backend/test/pools.test.ts backend/test/geocode.test.ts backend/test/applications.test.ts",
+    "test:backend": "SST_RESOURCE_Table={\\\"name\\\":\\\"test-table\\\"} SST_RESOURCE_App={\\\"name\\\":\\\"rofo\\\",\\\"stage\\\":\\\"test\\\"} tsx --test backend/test/pools.test.ts backend/test/geocode.test.ts backend/test/applications.test.ts backend/test/policy.test.ts",
     "test:frontend": "tsx --test tests/api.test.ts tests/agent.test.ts",
     "check:env": "node scripts/check-env.mjs"
   },
