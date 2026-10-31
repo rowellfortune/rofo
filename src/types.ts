@@ -27,6 +27,8 @@ export interface Listing {
   lat: number; // latitude in degrees (approximate for the demo)
   lng: number; // longitude in degrees
   agent: { name: string; agency: string; phone: string };
+  images?: string[]; // photo URLs from the API. Missing in demo mode.
+  createdAt?: string;
 }
 
 /** Filter state shared by the search bar and results page. */
@@ -65,7 +67,9 @@ export interface Proposal {
   id: string;
   title: string;
   detail: string;
-  votes: Record<string, 'yes' | 'no'>; // memberId -> choice
+  votes: Record<string, 'yes' | 'no'>; // memberId -> choice (demo mode)
+  /** Server-computed result (API mode). Replaces `votes` when present. */
+  tally?: { yes: number; no: number; needed: number; status: 'PASSED' | 'REJECTED' | 'OPEN'; myVote: 'yes' | 'no' | null };
 }
 
 /** A group of people saving together to buy one property. */
@@ -79,4 +83,6 @@ export interface Pool {
   members: PoolMember[];
   ledger: LedgerEntry[];
   proposals: Proposal[];
+  /** Server totals (API mode). Lists of members are private, so counts come from here. */
+  summary?: { raised: number; goal: number; memberCount: number; viewerIsMember: boolean };
 }

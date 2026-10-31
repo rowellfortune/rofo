@@ -1,40 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { listings } from '../data/listings';
 import { ListingCard } from '../components/ListingCard';
 import { ResultsMap } from '../components/ResultsMap';
-import type { Listing } from '../types';
-
-/** Apply URL filters to the listing array. */
-function applyFilters(params: URLSearchParams): Listing[] {
-  const deal = params.get('deal');
-  const q = (params.get('q') ?? '').toLowerCase();
-  const type = params.get('type') ?? '';
-  const min = Number(params.get('min') || 0);
-  const max = Number(params.get('max') || Infinity);
-  const beds = Number(params.get('beds') || 0);
-  const sort = params.get('sort') ?? 'newest';
-
-  const out = listings.filter((l) => {
-    if (deal && l.deal !== deal) return false;
-    if (type && l.type !== type) return false;
-    if (l.price < min || l.price > max) return false;
-    if (beds && l.beds < beds) return false;
-    if (q && !`${l.city} ${l.country} ${l.address} ${l.title}`.toLowerCase().includes(q)) return false;
-    return true;
-  });
-
-  if (sort === 'price-asc') out.sort((a, b) => a.price - b.price);
-  if (sort === 'price-desc') out.sort((a, b) => b.price - a.price);
-  if (sort === 'area-desc') out.sort((a, b) => b.areaM2 - a.areaM2);
-  return out;
-}
+import { useSearch } from '../hooks/useListings';
 
 /** Results page: filters, list and map. State lives in the URL so links are shareable. */
 export function Results() {
   const [params, setParams] = useSearchParams();
   const [hover, setHover] = useState<string | null>(null);
-  const items = useMemo(() => applyFilters(params), [params]);
+  const { data: items, loading, error } = useSearch(params);
 
   /** Update one query param, or remove it when empty. */
   const set = (key: string, value: string) => {
@@ -76,7 +50,7 @@ export function Results() {
       <div className="container results-body">
         <div className="results-list">
           <div className="results-head">
-            <h1>{items.length} {items.length === 1 ? 'property' : 'properties'}</h1>
+            <h1>{loading ? 'Searching...' : `${items.length} ${items.length === 1 ? 'property' : 'properties'}`}</h1>
             <select value={params.get('sort') ?? 'newest'} onChange={(e) => set('sort', e.target.value)} aria-label="Sort">
               <option value="newest">Newest</option>
               <option value="price-asc">Price, low to high</option>
@@ -84,7 +58,8 @@ export function Results() {
               <option value="area-desc">Largest area</option>
             </select>
           </div>
-          {items.length === 0 && <p className="empty">No results. Try removing a filter.</p>}
+          {error && <div className="notice" role="alert">Could not load listings. {error}</div>}
+          {!loading && !error && items.length === 0 && <p className="empty">No results. Try removing a filter.</p>}
           {items.map((l) => (
             <ListingCard key={l.id} listing={l} layout="row" highlighted={hover === l.id} onHover={setHover} />
           ))}

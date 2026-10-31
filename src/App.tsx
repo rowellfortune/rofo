@@ -7,6 +7,7 @@ import { Detail } from './pages/Detail';
 import { Pools } from './pages/Pools';
 import { NewPool } from './pages/NewPool';
 import { PoolDetail } from './pages/PoolDetail';
+import { Login } from './pages/Login';
 
 /** App shell and routes. */
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/search" element={<Results />} />
           <Route path="/property/:id" element={<Detail />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/pools" element={<Pools />} />
           <Route path="/pools/new" element={<NewPool />} />
           <Route path="/pools/:id" element={<PoolDetail />} />

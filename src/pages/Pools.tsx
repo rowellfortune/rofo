@@ -4,7 +4,7 @@ import { usePools } from '../state/PoolsContext';
 
 /** Pools overview: how it works and every open pool. */
 export function Pools() {
-  const { pools } = usePools();
+  const { pools, loading, error, clearError, needsAuth } = usePools();
   const steps = [
     ['Pick a home', 'Choose a property you can afford together.'],
     ['Form a group', 'Invite 3 to 12 people. Agree each person\'s monthly amount.'],
@@ -37,7 +37,16 @@ export function Pools() {
 
       <section className="container section">
         <h2>Open pools</h2>
-        <div className="grid">{pools.map((p) => <PoolCard key={p.id} pool={p} />)}</div>
+        {error && <div className="notice" role="alert">{error} <button className="btn btn-ghost" onClick={clearError}>Dismiss</button></div>}
+        {needsAuth ? (
+          <p className="muted">Sign in to browse and join pools. <Link to="/login?next=/pools"><u>Sign in</u></Link></p>
+        ) : loading && pools.length === 0 ? (
+          <p className="muted">Loading pools...</p>
+        ) : pools.length === 0 ? (
+          <p className="muted">No open pools yet. Start the first one.</p>
+        ) : (
+          <div className="grid">{pools.map((p) => <PoolCard key={p.id} pool={p} />)}</div>
+        )}
       </section>
     </>
   );

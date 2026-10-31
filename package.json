@@ -12,13 +12,15 @@
     "sst:dev": "sst dev",
     "deploy:prod": "sst deploy --stage production",
     "seed": "sst shell --stage dev -- tsx backend/scripts/seed.ts",
-    "test:backend": "SST_RESOURCE_Table={\\\"name\\\":\\\"test-table\\\"} SST_RESOURCE_App={\\\"name\\\":\\\"rofo\\\",\\\"stage\\\":\\\"test\\\"} tsx --test backend/test/pools.test.ts"
+    "test:backend": "SST_RESOURCE_Table={\\\"name\\\":\\\"test-table\\\"} SST_RESOURCE_App={\\\"name\\\":\\\"rofo\\\",\\\"stage\\\":\\\"test\\\"} tsx --test backend/test/pools.test.ts",
+    "test:frontend": "tsx --test tests/api.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1161.0",
     "@aws-sdk/client-s3": "^3.1161.0",
     "@aws-sdk/lib-dynamodb": "^3.1161.0",
     "@aws-sdk/s3-presigned-post": "^3.1161.0",
+    "aws-amplify": "^6.22.2",
     "maplibre-gl": "^6.16.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -27,6 +29,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1161.0",
     "@types/aws-lambda": "^8.10.164",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",

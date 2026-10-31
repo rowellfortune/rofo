@@ -238,3 +238,5 @@ p { margin: 0 0 1rem; }
   .contact { position: static; }
   .ledger li { grid-template-columns: 1fr 1fr; }
 }
+
+.header-user { align-self: center; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
 import { ListingCard } from '../components/ListingCard';
 import { PoolCard } from '../components/PoolCard';
-import { listings, popularPlaces } from '../data/listings';
+import { popularPlaces } from '../data/listings';
+import { useSearch } from '../hooks/useListings';
 import { placeholderImage } from '../lib/format';
 import { usePools } from '../state/PoolsContext';
 
@@ -28,6 +29,7 @@ function Icon({ name }: { name: keyof typeof icons }) {
 /** Landing page: hero with product preview, stats, features, listings, CTA. */
 export function Home() {
   const { pools } = usePools();
+  const { data: listings } = useSearch(new URLSearchParams());
   const fresh = listings.filter((l) => l.isNew || l.openHouse).slice(0, 4);
   const recent = listings.slice(0, 8);
   const countries = new Set(listings.map((l) => l.country)).size;
@@ -52,7 +54,7 @@ export function Home() {
             </div>
           </div>
           <div className="hero-preview" aria-hidden="true">
-            <ListingCard listing={previewListing} />
+            {previewListing && <ListingCard listing={previewListing} />}
             {previewPool && <div className="pool-mini"><PoolCard pool={previewPool} /></div>}
           </div>
         </div>

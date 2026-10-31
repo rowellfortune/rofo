@@ -6,6 +6,14 @@ export const userPool = new sst.aws.CognitoUserPool('Users', {
   usernames: ['email'],
   mfa: 'optional',
   softwareToken: true,
+  // New accounts join the Client group automatically after email confirmation.
+  triggers: {
+    postConfirmation: {
+      handler: 'backend/auth/postConfirmation.handler',
+      // Scoped to user pools in this account. The exact pool ARN would create a circular dependency.
+      permissions: [{ actions: ['cognito-idp:AdminAddUserToGroup'], resources: ['arn:aws:cognito-idp:*:*:userpool/*'] }],
+    },
+  },
   transform: {
     userPool: (args) => {
       args.passwordPolicy = {

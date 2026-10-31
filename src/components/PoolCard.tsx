@@ -1,21 +1,21 @@
 import { Link } from 'react-router-dom';
 import type { Pool } from '../types';
-import { getListing } from '../data/listings';
+import { useListing } from '../hooks/useListings';
 import { formatPrice, placeholderImage } from '../lib/format';
-import { goalAmount, poolStatus, raised } from '../lib/pools';
+import { goalAmount, memberCount, poolStatus, raised } from '../lib/pools';
 
 /** Summary card for one pool: property, progress bar, seats. */
 export function PoolCard({ pool }: { pool: Pool }) {
-  const l = getListing(pool.listingId);
+  const { data: l } = useListing(pool.listingId);
   if (!l) return null;
   const goal = goalAmount(l.price);
   const got = raised(pool);
   const pct = Math.min(100, Math.round((got / goal) * 100));
-  const seats = pool.maxMembers - pool.members.length;
+  const seats = pool.maxMembers - memberCount(pool);
 
   return (
     <Link to={`/pools/${pool.id}`} className="card pool-card">
-      <div className="card-img" style={{ backgroundImage: `url("${placeholderImage(l.hue, 0, l.type)}")` }}>
+      <div className="card-img" style={{ backgroundImage: `url("${l.images?.[0] ?? placeholderImage(l.hue, 0, l.type)}")` }}>
         <span className="badge badge-open">{poolStatus(pool, l.price)}</span>
       </div>
       <div className="card-body">

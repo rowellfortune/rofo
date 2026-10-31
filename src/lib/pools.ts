@@ -1,4 +1,4 @@
-import type { Pool, PoolMember } from '../types';
+import type { Pool, PoolMember, Proposal } from '../types';
 
 /** Share of the price the group must raise: 20% deposit plus 5% closing costs. */
 export const GOAL_RATE = 0.25;
@@ -14,8 +14,12 @@ export function monthlyPerMember(price: number, members: number, months: number)
   return Math.ceil(goalAmount(price) / members / months);
 }
 
-/** Total paid in by all members. */
-export const raised = (pool: Pool): number => pool.members.reduce((s, m) => s + m.contributed, 0);
+/** Total paid in by all members. Uses the server total when members are hidden. */
+export const raised = (pool: Pool): number =>
+  pool.summary?.raised ?? pool.members.reduce((s, m) => s + m.contributed, 0);
+
+/** Seats taken. Uses the server count when the member list is hidden. */
+export const memberCount = (pool: Pool): number => pool.summary?.memberCount ?? pool.members.length;
 
 /** Total monthly commitment across members. */
 export const monthlyTotal = (pool: Pool): number => pool.members.reduce((s, m) => s + m.monthly, 0);
@@ -41,5 +45,15 @@ export function monthsLeft(pool: Pool, price: number): number {
 /** Pool status label from progress and seats. */
 export function poolStatus(pool: Pool, price: number): 'Forming' | 'Saving' | 'Ready to buy' {
   if (raised(pool) >= goalAmount(price)) return 'Ready to buy';
-  return pool.members.length < pool.maxMembers ? 'Forming' : 'Saving';
+  return memberCount(pool) < pool.maxMembers ? 'Forming' : 'Saving';
+}
+
+/** Vote tally for one proposal. API pools bring a server tally. Demo pools count the votes map. */
+export function proposalView(pool: Pool, pr: Proposal, meId: string | null) {
+  if (pr.tally) return pr.tally;
+  const yes = Object.values(pr.votes).filter((v) => v === 'yes').length;
+  const no = Object.values(pr.votes).filter((v) => v === 'no').length;
+  const needed = quorum(pool.members.length);
+  const status = yes >= needed ? 'PASSED' : no > pool.members.length - needed ? 'REJECTED' : 'OPEN';
+  return { yes, no, needed, status: status as 'PASSED' | 'REJECTED' | 'OPEN', myVote: meId ? pr.votes[meId] ?? null : null };
 }

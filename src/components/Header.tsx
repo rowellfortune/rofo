@@ -1,4 +1,5 @@
 import { Link, NavLink } from 'react-router-dom';
+import { useAuth } from '../state/AuthContext';
 
 /** Logo mark: a house shape in the brand colors. */
 export function Logo() {
@@ -16,6 +17,7 @@ export function Logo() {
 
 /** Top navigation bar shown on every page. */
 export function Header() {
+  const { user, signOut } = useAuth();
   return (
     <header className="header">
       <div className="container header-inner">
@@ -27,7 +29,14 @@ export function Header() {
           <a href="/#sell">Sell</a>
         </nav>
         <div className="header-actions">
-          <button className="btn btn-ghost">Log in</button>
+          {user ? (
+            <>
+              <span className="muted small header-user">{user.email}</span>
+              <button className="btn btn-ghost" onClick={() => void signOut()}>Sign out</button>
+            </>
+          ) : (
+            <Link className="btn btn-ghost" to="/login">Log in</Link>
+          )}
           <button className="btn btn-primary">List a property</button>
         </div>
       </div>
