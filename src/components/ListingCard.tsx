@@ -29,8 +29,8 @@ export function ListingCard({ listing: l, layout = 'tile', highlighted, onHover 
         <div className="muted">{l.city}, {l.country}</div>
         <ul className="specs">
           {l.areaM2 > 0 && <li>{l.areaM2} m²</li>}
-          {l.beds > 0 && <li>{l.beds} beds</li>}
-          {l.baths > 0 && <li>{l.baths} baths</li>}
+          {l.beds > 0 && <li>{l.beds} {l.beds === 1 ? 'bed' : 'beds'}</li>}
+          {l.baths > 0 && <li>{l.baths} {l.baths === 1 ? 'bath' : 'baths'}</li>}
           {l.plotM2 && <li>{l.plotM2} m² plot</li>}
         </ul>
         <div className="muted small">{l.agent.agency}</div>

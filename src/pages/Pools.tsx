@@ -17,7 +17,7 @@ export function Pools() {
       <section className="hero hero-slim">
         <div className="container hero-inner">
           <h1>Buy a home together</h1>
-          <p className="hero-sub">Pool small monthly amounts with people you trust. Own a share of a real home.</p>
+          <p className="hero-sub">Save with a small group. Own a share of a home.</p>
           <Link to="/pools/new" className="btn btn-primary btn-lg">Start a pool</Link>
         </div>
       </section>

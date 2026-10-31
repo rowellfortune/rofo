@@ -2,10 +2,10 @@ import type { PropertyType } from '../types';
 
 /** Sky palettes. Variant picks the time of day so gallery shots differ. */
 const SKIES = [
-  { top: '#4aa3df', bottom: '#cfeaf7', sun: '#fff6c8', glow: 0, name: 'day' },
-  { top: '#f6a05a', bottom: '#ffe3b0', sun: '#fff1b8', glow: 1, name: 'golden' },
-  { top: '#3b8fd0', bottom: '#bfe3f4', sun: '#fffbe0', glow: 0, name: 'noon' },
-  { top: '#1c2a5a', bottom: '#e8805a', sun: '#ffd9a0', glow: 1, name: 'dusk' },
+  { top: '#aebccb', bottom: '#e7ecf0', sun: '#ffffff', glow: 0, name: 'day' },
+  { top: '#c9b79d', bottom: '#f0e6d6', sun: '#ffffff', glow: 1, name: 'golden' },
+  { top: '#a3b4c4', bottom: '#e9eef2', sun: '#ffffff', glow: 0, name: 'noon' },
+  { top: '#39475c', bottom: '#b79d8a', sun: '#ffffff', glow: 1, name: 'dusk' },
 ];
 
 /** Shade a hex color. amt in -1..1 (negative darkens). */
@@ -18,7 +18,7 @@ function shade(hex: string, amt: number): string {
 
 /** HSL to hex, so listing hue drives wall and roof colors. */
 function hsl(h: number, s: number, l: number): string {
-  s /= 100; l /= 100;
+  s = (s * 0.55) / 100; l /= 100;
   const k = (n: number) => (n + h / 30) % 12;
   const a = s * Math.min(l, 1 - l);
   const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
@@ -36,33 +36,27 @@ function windowPane(x: number, y: number, w: number, h: number, lit: boolean, cr
   </g>`;
 }
 
-/** Palm tree at (x, base y) with scale s. */
-function palm(x: number, y: number, s: number, lean = 1): string {
-  const top = { x: x + 26 * s * lean, y: y - 150 * s };
-  const fronds = [-70, -35, -5, 25, 55, 85, 115].map((a) => {
-    const rad = (a * Math.PI) / 180;
-    const ex = top.x + Math.cos(rad) * 64 * s;
-    const ey = top.y - Math.sin(rad) * 28 * s + 34 * s;
-    return `<path d="M${top.x} ${top.y} Q${top.x + Math.cos(rad) * 34 * s} ${top.y - 38 * s} ${ex} ${ey} Q${top.x + Math.cos(rad) * 30 * s} ${top.y - 18 * s} ${top.x} ${top.y}z" fill="#2f7d3e"/>`;
-  });
+/** Simple tree: trunk and a layered canopy. Muted greens. */
+function tree(x: number, y: number, s: number, lean = 1): string {
+  void lean;
   return `<g>
-    <path d="M${x} ${y} Q${x + 8 * s * lean} ${y - 80 * s} ${top.x} ${top.y}" stroke="#7a5a3a" stroke-width="${7 * s}" fill="none" stroke-linecap="round"/>
-    ${fronds.join('')}
-    <circle cx="${top.x}" cy="${top.y + 4 * s}" r="${5 * s}" fill="#5b3a1e"/>
+    <rect x="${x - 3 * s}" y="${y - 70 * s}" width="${6 * s}" height="${70 * s}" fill="#6b5a48"/>
+    <ellipse cx="${x}" cy="${y - 92 * s}" rx="${38 * s}" ry="${44 * s}" fill="#566b52"/>
+    <ellipse cx="${x - 10 * s}" cy="${y - 100 * s}" rx="${24 * s}" ry="${28 * s}" fill="#61785c"/>
   </g>`;
 }
 
 /** Round bush. */
-const bush = (x: number, y: number, r: number, c = '#2f7d3e') =>
+const bush = (x: number, y: number, r: number, c = '#566b52') =>
   `<g><ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.7}" fill="${c}"/><ellipse cx="${x - r * 0.3}" cy="${y - r * 0.2}" rx="${r * 0.6}" ry="${r * 0.4}" fill="${shade(c, 0.18)}"/></g>`;
 
 /** Modern two-storey villa with flat roof, glass wall and pool. */
 function villa(hue: number, lit: boolean): string {
   const wall = hsl(hue, 18, 92), accent = hsl(hue, 30, 38);
   return `
-    <rect x="0" y="470" width="800" height="130" fill="#7fb36a"/>
+    <rect x="0" y="470" width="800" height="130" fill="#a3ad98"/>
     <path d="M60 520h560l60 40H0z" fill="#d9cfbd"/>
-    <path d="M300 505 H700 L760 560 H240z" fill="#43b6d6"/><path d="M300 505 H700 L690 520 H310z" fill="#2a8fb0"/>
+    <path d="M300 505 H700 L760 560 H240z" fill="#7fa3b0"/><path d="M300 505 H700 L690 520 H310z" fill="#5f8796"/>
     <path d="M330 530 H640" stroke="#fff" stroke-width="2" opacity=".5"/>
     <rect x="130" y="370" width="320" height="130" fill="${wall}"/>
     <rect x="130" y="370" width="320" height="130" fill="url(#shadeV)"/>
@@ -78,16 +72,16 @@ function villa(hue: number, lit: boolean): string {
     <path d="M150 392H350M150 482H350" stroke="#2b3a42" stroke-width="3"/>
     ${[460, 490, 520].map((x) => `<rect x="${x}" y="326" width="3" height="28" fill="#cfd6d9"/>`).join('')}
     <path d="M458 326H524" stroke="#cfd6d9" stroke-width="3"/>
-    ${palm(660, 500, 1.15, -1)}${palm(95, 505, 0.95)}
-    ${bush(120, 505, 26)}${bush(460, 506, 22, '#3a8a47')}`;
+    ${tree(660, 500, 1.15, -1)}${tree(95, 505, 0.95)}
+    ${bush(120, 505, 26)}${bush(460, 506, 22, '#61785c')}`;
 }
 
 /** Colonial wooden house with gabled roof, veranda and columns. */
 function house(hue: number, lit: boolean): string {
   const wall = hsl(hue, 22, 90), trim = '#fbf8f1', roof = hsl(hue, 35, 34);
   return `
-    <rect x="0" y="450" width="800" height="150" fill="#79ae63"/>
-    <path d="M0 520Q400 490 800 520V600H0z" fill="#6aa056"/>
+    <rect x="0" y="450" width="800" height="150" fill="#9ba692"/>
+    <path d="M0 520Q400 490 800 520V600H0z" fill="#8e9a85"/>
     <rect x="150" y="300" width="500" height="170" fill="${wall}"/>
     <rect x="150" y="300" width="500" height="170" fill="url(#shadeV)"/>
     <path d="M110 305 L400 170 L690 305z" fill="${roof}"/>
@@ -104,8 +98,8 @@ function house(hue: number, lit: boolean): string {
     <rect x="140" y="306" width="520" height="10" fill="${trim}"/>
     <path d="M140 442H660" stroke="${trim}" stroke-width="6"/>
     <path d="M400 484 L380 560 H420z" fill="#c9bda6"/>
-    ${bush(110, 490, 30)}${bush(690, 492, 32, '#3a8a47')}
-    ${palm(745, 500, 1.1, -1)}${palm(55, 505, 0.9)}`;
+    ${bush(110, 490, 30)}${bush(690, 492, 32, '#61785c')}
+    ${tree(745, 500, 1.1, -1)}${tree(55, 505, 0.9)}`;
 }
 
 /** Mid-rise apartment block with a window grid and balconies. */
@@ -121,8 +115,8 @@ function apartment(hue: number, lit: boolean): string {
     }
   }
   return `
-    <rect x="0" y="460" width="800" height="140" fill="#8a8f93"/>
-    <rect x="0" y="470" width="800" height="12" fill="#a7abae"/>
+    <rect x="0" y="460" width="800" height="140" fill="#8d9094"/>
+    <rect x="0" y="470" width="800" height="12" fill="#a9acaf"/>
     <path d="M0 540H800" stroke="#f1f1f1" stroke-width="3" stroke-dasharray="40 30"/>
     <rect x="170" y="130" width="460" height="340" fill="${wall}"/>
     <rect x="170" y="130" width="460" height="340" fill="url(#shadeV)"/>
@@ -133,33 +127,33 @@ function apartment(hue: number, lit: boolean): string {
     <rect x="350" y="414" width="100" height="56" fill="url(#glass)"/>
     <path d="M400 414v56" stroke="#2b3a42" stroke-width="3"/>
     <rect x="335" y="402" width="130" height="10" fill="${band}"/>
-    ${bush(150, 476, 24)}${bush(655, 478, 24, '#3a8a47')}
-    ${palm(95, 480, 1.0)}${palm(720, 482, 1.1, -1)}`;
+    ${bush(150, 476, 24)}${bush(655, 478, 24, '#61785c')}
+    ${tree(95, 480, 1.0)}${tree(720, 482, 1.1, -1)}`;
 }
 
 /** Empty plot: fence, grass, trees and a sale sign. */
 function land(hue: number): string {
   void hue;
   return `
-    <rect x="0" y="400" width="800" height="200" fill="#86b56d"/>
-    <path d="M0 470 Q200 430 420 470 T800 450 V600 H0z" fill="#79a85f"/>
-    <path d="M0 540 Q300 500 800 540 V600 H0z" fill="#6c9c55"/>
+    <rect x="0" y="400" width="800" height="200" fill="#a1ab97"/>
+    <path d="M0 470 Q200 430 420 470 T800 450 V600 H0z" fill="#95a08b"/>
+    <path d="M0 540 Q300 500 800 540 V600 H0z" fill="#889580"/>
     <path d="M0 520 L800 470" stroke="#8a6d4b" stroke-width="5"/><path d="M0 548 L800 500" stroke="#8a6d4b" stroke-width="5"/>
     ${Array.from({ length: 14 }, (_, i) => `<rect x="${i * 62 + 8}" y="${500 - i * 3.6}" width="8" height="64" fill="#9b7d57"/>`).join('')}
     <rect x="300" y="360" width="8" height="110" fill="#6b5236"/><rect x="370" y="360" width="8" height="110" fill="#6b5236"/>
-    <rect x="285" y="340" width="110" height="62" rx="4" fill="#fbf8f1"/><rect x="285" y="340" width="110" height="62" rx="4" fill="none" stroke="#d52318" stroke-width="4"/>
-    <text x="340" y="368" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="16" fill="#d52318">FOR SALE</text>
+    <rect x="285" y="340" width="110" height="62" rx="4" fill="#fbf8f1"/><rect x="285" y="340" width="110" height="62" rx="4" fill="none" stroke="#7a2e2e" stroke-width="4"/>
+    <text x="340" y="368" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="16" fill="#7a2e2e">FOR SALE</text>
     <text x="340" y="388" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#333">Building plot</text>
-    ${palm(120, 470, 1.2)}${palm(690, 462, 1.0, -1)}${palm(600, 468, 0.8)}
-    ${bush(220, 480, 34, '#3a8a47')}${bush(520, 486, 28)}`;
+    ${tree(120, 470, 1.2)}${tree(690, 462, 1.0, -1)}${tree(600, 468, 0.8)}
+    ${bush(220, 480, 34, '#61785c')}${bush(520, 486, 28)}`;
 }
 
 /** Corner shop with awning, shopfront glass and signage. */
 function commercial(hue: number, lit: boolean): string {
-  const wall = hsl(hue, 14, 82), awn = '#d52318';
+  const wall = hsl(hue, 14, 82), awn = '#7a2e2e';
   const stripes = Array.from({ length: 10 }, (_, i) => `<rect x="${170 + i * 46}" y="318" width="23" height="44" fill="${i % 2 ? '#fbf8f1' : awn}"/>`).join('');
   return `
-    <rect x="0" y="470" width="800" height="130" fill="#8d9296"/>
+    <rect x="0" y="470" width="800" height="130" fill="#8f9296"/>
     <rect x="0" y="470" width="800" height="14" fill="#b2b6b9"/>
     <rect x="130" y="150" width="540" height="330" fill="${wall}"/>
     <rect x="130" y="150" width="540" height="330" fill="url(#shadeV)"/>
@@ -173,7 +167,7 @@ function commercial(hue: number, lit: boolean): string {
     <path d="M267 384v96M364 384v96" stroke="#2b3a42" stroke-width="3"/>
     <rect x="490" y="384" width="110" height="96" fill="url(#glass)"/><path d="M545 384v96" stroke="#2b3a42" stroke-width="3"/>
     <rect x="610" y="384" width="26" height="96" fill="${hsl(hue, 30, 30)}"/>
-    ${palm(75, 490, 1.0)}${palm(740, 492, 0.9, -1)}`;
+    ${tree(75, 490, 1.0)}${tree(740, 492, 0.9, -1)}`;
 }
 
 /**
@@ -190,7 +184,6 @@ export function sceneSvg(hue: number, variant: number, type: PropertyType): stri
     : type === 'Commercial' ? commercial(hue, lit)
     : house(hue, lit);
   const dim = sky.name === 'dusk' ? 0.28 : sky.name === 'golden' ? 0.08 : 0;
-  const sunX = [610, 150, 520, 660][variant % 4];
 
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 600' preserveAspectRatio='xMidYMid slice'>
   <defs>
@@ -201,14 +194,8 @@ export function sceneSvg(hue: number, variant: number, type: PropertyType): stri
     <radialGradient id='sun'><stop offset='0' stop-color='${sky.sun}'/><stop offset='1' stop-color='${sky.sun}' stop-opacity='0'/></radialGradient>
   </defs>
   <rect width='800' height='600' fill='url(#sky)'/>
-  <circle cx='${sunX}' cy='${sky.glow ? 300 : 90}' r='${sky.glow ? 150 : 80}' fill='url(#sun)'/>
-  <circle cx='${sunX}' cy='${sky.glow ? 300 : 90}' r='${sky.glow ? 34 : 26}' fill='${sky.sun}'/>
-  <g fill='#fff' opacity='.75'>
-    <ellipse cx='${160 + variant * 40}' cy='95' rx='70' ry='16'/><ellipse cx='${200 + variant * 40}' cy='82' rx='46' ry='14'/>
-    <ellipse cx='${560 - variant * 30}' cy='150' rx='60' ry='13'/><ellipse cx='${590 - variant * 30}' cy='138' rx='38' ry='11'/>
-  </g>
   <path d='M0 400 Q120 330 260 395 T520 380 T800 395 V470 H0z' fill='${hsl(hue, 25, 52)}' opacity='.55'/>
-  <path d='M0 430 Q200 380 420 430 T800 420 V480 H0z' fill='#4f8a52' opacity='.8'/>
+  <path d='M0 430 Q200 380 420 430 T800 420 V480 H0z' fill='#7c8a76' opacity='.8'/>
   ${body}
   <rect width='800' height='600' fill='#0b1b3a' opacity='${dim}'/>
 </svg>`;
