@@ -13,7 +13,7 @@
     "deploy:prod": "sst deploy --stage production",
     "seed": "sst shell --stage dev -- tsx backend/scripts/seed.ts",
     "test:backend": "SST_RESOURCE_Table={\\\"name\\\":\\\"test-table\\\"} SST_RESOURCE_Images={\\\"name\\\":\\\"test-bucket\\\"} SST_RESOURCE_App={\\\"name\\\":\\\"rofo\\\",\\\"stage\\\":\\\"test\\\"} tsx --test backend/test/pools.test.ts backend/test/geocode.test.ts backend/test/applications.test.ts backend/test/policy.test.ts backend/test/listings.test.ts backend/test/rest.test.ts",
-    "test:frontend": "tsx --test tests/api.test.ts tests/agent.test.ts tests/pools.test.ts tests/revoke.test.ts",
+    "test:frontend": "tsx --test tests/api.test.ts tests/agent.test.ts tests/pools.test.ts tests/revoke.test.ts tests/auth.test.ts",
     "check:env": "node scripts/check-env.mjs"
   },
   "dependencies": {
@@ -23,6 +23,7 @@
     "@aws-sdk/s3-presigned-post": "^3.1161.0",
     "aws-amplify": "^6.22.2",
     "maplibre-gl": "^6.16.0",
+    "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5",
@@ -33,6 +34,7 @@
     "@aws-sdk/client-cognito-identity-provider": "^3.1161.0",
     "@types/aws-lambda": "^8.10.164",
     "@types/node": "^24.19.2",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",

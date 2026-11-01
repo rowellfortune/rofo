@@ -39,7 +39,7 @@ export function Header() {
         <div className="header-actions">
           {user ? (
             <>
-              <span className="muted small header-user">{user.email}</span>
+              <Link to="/account" className="muted small header-user" title="Your account and security">{user.email}</Link>
               <button className="btn btn-ghost" onClick={() => void signOut()}>Sign out</button>
             </>
           ) : (

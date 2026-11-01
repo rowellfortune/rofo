@@ -8,6 +8,7 @@ import { Pools } from './pages/Pools';
 import { NewPool } from './pages/NewPool';
 import { PoolDetail } from './pages/PoolDetail';
 import { Login } from './pages/Login';
+import { Account } from './pages/Account';
 import { RequireAdmin, RequireAgent } from './components/RequireAgent';
 import { ApplyAgent } from './pages/agent/ApplyAgent';
 import { AdminApplications } from './pages/admin/AdminApplications';
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/search" element={<Results />} />
           <Route path="/property/:id" element={<Detail />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/account" element={<Account />} />
           <Route path="/agent/apply" element={<ApplyAgent />} />
           <Route path="/admin/applications" element={<RequireAdmin><AdminApplications /></RequireAdmin>} />
           <Route path="/agent" element={<RequireAgent><AgentDashboard /></RequireAgent>} />

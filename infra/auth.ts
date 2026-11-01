@@ -24,6 +24,8 @@ export const userPool = new sst.aws.CognitoUserPool('Users', {
         requireSymbols: false,
       };
       args.autoVerifiedAttributes = ['email'];
+      // Forgot password sends the code to the verified email. Say so explicitly instead of trusting a default.
+      args.accountRecoverySetting = { recoveryMechanisms: [{ name: 'verified_email', priority: 1 }] };
     },
   },
 });

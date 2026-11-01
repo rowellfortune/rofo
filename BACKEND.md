@@ -122,3 +122,15 @@ Hidden listings: not in search, not readable by the public, skipped in saved lis
 Approving the person again removes the block and brings back the listings that revocation hid. Listings hidden for any other reason stay hidden.
 
 A revoked person can apply again. The next reviewer sees the earlier reason.
+
+## Sign in and account security
+
+Screens: `/login` (sign in, sign up, confirm email, forgot password, reset password, authenticator code) and `/account` (profile, two step verification).
+
+- **Forgot password** sends a code to the verified email (pool recovery is set to verified email only). The page gives the same answer whether or not the account exists, and wrong password and unknown email read the same, so the forms cannot be used to find out who has an account.
+- **Resend code** has a 30 second cooldown in the page. Cognito also rate limits on its side.
+- **Two step verification** is an authenticator app (TOTP). The user enrolls at `/account` with a QR code and a typed key, proves it with the first code, and is then asked for a code at every sign in. The pool allows it as optional. SMS is not enabled.
+- Cognito has no recovery codes. A lost device means an admin resets it (command in `DEPLOY.md`).
+- Passwords: at least 10 characters with upper case, lower case and a number. The page checks the same rules before sending. Cognito remains the authority.
+- The sign in uses SRP, so the password is never sent to the server.
+- Pure rules and error wording live in `src/lib/authFlow.ts` and are covered by `tests/auth.test.ts`.

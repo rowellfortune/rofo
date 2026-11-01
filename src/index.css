@@ -325,3 +325,12 @@ p { margin: 0 0 1rem; }
 /* Revoking */
 .chip-status.bad { background: rgba(248, 113, 113, .14); color: #fca5a5; }
 .dash-table .chip-status { margin-left: .5rem; }
+
+/* Account and two step verification */
+.account-card { max-width: 640px; margin-bottom: 1rem; }
+.mfa-setup { display: flex; flex-direction: column; gap: 1rem; margin-top: .5rem; }
+.mfa-steps { margin: 0; padding-left: 1.25rem; color: var(--ink-2); }
+.mfa-qr { display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap; }
+.mfa-qr img { background: #fff; padding: 6px; border-radius: var(--radius); }
+.mfa-secret { display: block; margin-top: .35rem; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 1.05rem; letter-spacing: .06em; background: var(--surface-2); border: 1px solid var(--line); padding: .5rem .75rem; border-radius: var(--radius); user-select: all; }
+.header-user:hover { color: var(--ink); }

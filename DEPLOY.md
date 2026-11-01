@@ -36,7 +36,7 @@ Stage names must be lowercase letters and digits. The images bucket name is buil
   ```bash
   npm run build              # app typecheck + production build
   npm run typecheck:backend  # backend, infra and tests
-  npm run test:frontend      # 28 tests
+  npm run test:frontend      # 32 tests
   npm run test:backend       # 43 tests
   ```
 
@@ -167,6 +167,28 @@ Revoking agent access. Use a throwaway agent account that has at least one listi
 | 27 | Submit. Admin opens the **Pending** tab. | The new application carries a warning, "Lost agent access before", with the old reason |
 | 28 | Admin approves. Agent clicks **Activate agent access**. | Dashboard opens, the listings show again and none say **Hidden** |
 
+Sign in, password reset and two step verification. Use a real inbox and a real authenticator app on your phone. These are the steps fakes cannot prove.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 29 | `/login`, **Create an account**, use a weak password (`weakpass`) | Refused on the page with the first problem, "Use at least 10 characters." No email is sent. |
+| 30 | Create it with a strong password. On the code screen enter a wrong code. | "That code is not right." You stay on the screen. |
+| 31 | Click **Send a new code** | New email arrives. The button counts down from 30 and cannot be clicked until it ends. |
+| 32 | Enter the right code, even typed as `123 456` | You are signed in and your email shows in the header |
+| 33 | Sign out. Sign in with a wrong password, then with an email that has no account. | The same message both times: "Incorrect email or password." |
+| 34 | **Forgot your password?** with an email that has an account, then with one that does not | The same message both times. Only the real account gets an email. |
+| 35 | Enter the emailed code and a new password | "Password updated." The old password no longer works and the new one does. |
+| 36 | `/account`, **Turn on two step verification**. Scan the QR code with your phone. | The app shows an entry labelled **RoFo estate** with your email. A wrong code is refused, the right one shows **On**. |
+| 37 | Sign out and sign in again | After the password, a code screen appears. A wrong code is refused. The right one signs you in. |
+| 38 | `/account`, **Turn off** | Sign in goes straight through again |
+
+A user who loses their phone is locked out of a two step account. Reset it from the CLI. The person can then sign in with the password and turn it on again at `/account`:
+
+```bash
+aws cognito-idp admin-set-user-mfa-preference --user-pool-id <userPoolId> --username <email> \
+  --software-token-mfa-settings Enabled=false,PreferredMfa=false
+```
+
 Then confirm the block works at the database, not only in the screens. After step 23, before step 27:
 
 ```bash
@@ -214,7 +236,7 @@ Do these before you let anyone outside your team sign up.
 - [ ] **Practise a restore once** on `dev` (steps in the next section). A backup you never restored is a guess.
 - [ ] **Abuse limits.** There is no WAF or rate limiting on AppSync or the REST API yet. Add AWS WAF before launch.
 - [ ] **Alarms and budget.** Create an AWS Budget alert and CloudWatch alarms for Lambda errors and AppSync 5xx.
-- [ ] **Admins use MFA.** The pool allows optional MFA. Turn it on for admin accounts.
+- [ ] **Admins turn on two step verification** at `/account`, and keep a copy of the key. It is optional for everyone and the app does not force it, so check each admin has done it.
 - [ ] **Pools and money.** The app records pooled contributions but moves no money. Do not accept real contributions until a lawyer has approved the co-ownership agreement, and an escrow or trustee holds the funds.
 - [ ] **Legal pages.** Privacy and terms links in the footer go nowhere yet.
 - [ ] **Custom domain** for the site, and update `WEB_ORIGIN` to match.
@@ -295,10 +317,16 @@ Without step 1, an existing token keeps working until it expires (Cognito's defa
 | `sst remove --stage production` fails on the table | Deletion protection is on | Intended. See Rolling back for the two step removal. |
 | A log group shows no retention | Created outside SST, or the transform did not apply | Run `npm run test:backend`. It checks the transforms are registered before any component. Set the retention by hand in CloudWatch as a stopgap. |
 | Sign up code never arrives | Spam folder, or the Cognito email limit | Use `admin-confirm-sign-up` |
+| Reset password email never arrives | Same as above. The page says the same thing for unknown emails, so a missing email can also mean no such account. | Check spam. Check the account exists with `admin-get-user`. Set a password by hand with `admin-set-user-password --permanent` if needed. |
+| "needs a sign in step the app does not support" | The account was created by an admin with a temporary password, so Cognito wants a forced password change | `aws cognito-idp admin-set-user-password --user-pool-id <id> --username <email> --password '<new>' --permanent` |
+| Code screen says "That sign in took too long" | The sign in session expired (a few minutes) before the code was entered | Start again from the password |
+| Stuck at the two step code and the phone is lost | No recovery codes exist | Reset it with the `admin-set-user-mfa-preference` command above |
 
 ## 14. Known gaps (do not look for these)
 
 - No email to applicants or buyers. Status shows in the app only.
+- Two step verification is by authenticator app only. No text message option, no recovery codes, and it is not enforced for admins.
+- No Google or Apple sign in.
 - Agents added by hand in Cognito have no application, so the Revoke button cannot see them. Use the manual steps in section 11.
 - Hidden listings cannot be un-hidden one by one. They return when the agent is approved again.
 - Revoking someone who is also an Admin changes nothing. Admin rights come from the Admin group. Remove that by hand.
