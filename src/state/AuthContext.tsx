@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { apiEnabled } from '../api/config';
 import { getAuth } from '../api/transport';
-import { nextAfterSignIn, normalizeCode as normalizeCodeForApi } from '../lib/authFlow';
+import { nextAfterSignIn, normalizeCode as normalizeCodeForApi, type AdminMfa } from '../lib/authFlow';
 
 /** The signed-in user, read from the Cognito ID token. */
 export interface AuthUser {
@@ -38,6 +38,10 @@ interface AuthApi {
     disable: () => Promise<void>;
   };
   signOut: () => Promise<void>;
+  /** Admins only: is two step verification on? Admin tools stay locked until it is. */
+  adminMfa: AdminMfa;
+  /** Ask again, for example right after turning it on in another tab. */
+  recheckAdminMfa: () => void;
   /** Re-read groups from Cognito without signing out (use after an admin approves you). */
   refresh: () => Promise<AuthUser | null>;
 }
@@ -63,6 +67,8 @@ async function readUser(): Promise<AuthUser | null> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(apiEnabled);
+  const [adminMfa, setAdminMfa] = useState<AdminMfa>('na');
+  const [recheck, setRecheck] = useState(0); // bump to ask again
 
   // Restore an existing session on load.
   useEffect(() => {
@@ -119,12 +125,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const auth = await getAuth();
       await auth.verifyTOTPSetup({ code: normalizeCodeForApi(code) });
       await auth.updateMFAPreference({ totp: 'PREFERRED' }); // make it the sign in step from now on
+      setAdminMfa((prev) => (prev === 'na' ? 'na' : 'ok')); // an admin just unlocked the admin tools
     },
     disable: async () => {
       const auth = await getAuth();
       await auth.updateMFAPreference({ totp: 'DISABLED' });
+      setAdminMfa((prev) => (prev === 'na' ? 'na' : 'missing')); // and an admin just locked them again
     },
   }), []);
+
+  // Admins: find out whether two step verification is on. The server checks too, this is for the screens.
+  const isAdminUser = Boolean(user?.groups.includes('Admin'));
+  useEffect(() => {
+    if (!apiEnabled || !user || !isAdminUser) { setAdminMfa('na'); return; }
+    let stale = false;
+    setAdminMfa('unknown');
+    // If the check fails we lock, like the server does. "Check again" retries.
+    mfa.isEnabled().then((on) => { if (!stale) setAdminMfa(on ? 'ok' : 'missing'); }).catch(() => { if (!stale) setAdminMfa('missing'); });
+    return () => { stale = true; };
+  }, [user?.sub, isAdminUser, mfa, recheck]);
+  const recheckAdminMfa = useCallback(() => setRecheck((n) => n + 1), []);
 
   const signUp = useCallback<AuthApi['signUp']>(async (email, password, name) => {
     const auth = await getAuth();
@@ -151,8 +171,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthApi>(
-    () => ({ enabled: apiEnabled, user, loading, signIn, confirmTotp, signUp, confirm, resendCode, forgotPassword, resetPassword, mfa, signOut, refresh }),
-    [user, loading, signIn, confirmTotp, signUp, confirm, resendCode, forgotPassword, resetPassword, mfa, signOut, refresh],
+    () => ({ enabled: apiEnabled, user, loading, signIn, confirmTotp, signUp, confirm, resendCode, forgotPassword, resetPassword, mfa, signOut, adminMfa, recheckAdminMfa, refresh }),
+    [user, loading, signIn, confirmTotp, signUp, confirm, resendCode, forgotPassword, resetPassword, mfa, signOut, adminMfa, recheckAdminMfa, refresh],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

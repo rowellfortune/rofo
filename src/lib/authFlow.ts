@@ -81,3 +81,17 @@ export function friendlyAuthError(err: unknown): string {
       return 'Something went wrong. Try again in a moment.';
   }
 }
+
+/** Whether an admin has two step verification on. 'na' = not an admin. 'unknown' = still checking. */
+export type AdminMfa = 'na' | 'unknown' | 'ok' | 'missing';
+
+/**
+ * What an admin only page should do. The server enforces the same rule, this just explains it
+ * instead of showing screens that would fail.
+ */
+export function adminGate(isAdminUser: boolean, mfa: AdminMfa): 'allow' | 'wait' | 'needs-mfa' | 'deny' {
+  if (!isAdminUser) return 'deny';
+  if (mfa === 'ok') return 'allow';
+  if (mfa === 'missing') return 'needs-mfa';
+  return 'wait'; // 'unknown', or 'na' on the first render before the check starts
+}

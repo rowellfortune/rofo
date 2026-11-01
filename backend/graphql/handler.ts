@@ -1,6 +1,7 @@
 import type { AppSyncResolverEvent } from 'aws-lambda';
 import { AppError } from '../utils/AppError';
-import { GraphqlUtil, getCaller, requireGroup } from '../utils/GraphqlUtil';
+import { GraphqlUtil, getCaller, requireGroup, type Caller } from '../utils/GraphqlUtil';
+import { enforceAdminMfa } from '../lib/mfaDeps';
 import * as L from '../lib/listings';
 import * as Q from '../lib/inquiries';
 import * as P from '../lib/pools';
@@ -37,6 +38,12 @@ const mapTilerKey = (): string => {
   try { return Resource.MapTilerKey.value; } catch { return ''; }
 };
 
+/**
+ * The caller for this request. An admin without two step verification comes back as an ordinary user,
+ * so none of the admin checks further down can pass for them. Always use this, never getCaller directly.
+ */
+const who = (event: AppSyncResolverEvent<any>): Promise<Caller> => enforceAdminMfa(getCaller(event));
+
 /** Route one AppSync field to its function. Each branch re-checks groups (defence in depth). */
 async function route(event: AppSyncResolverEvent<any>) {
   const { fieldName } = event.info;
@@ -56,55 +63,55 @@ async function route(event: AppSyncResolverEvent<any>) {
 
     // Agent or Admin
     case 'createListing': {
-      const c = getCaller(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
+      const c = await who(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
       return L.createListing(c, args.input);
     }
     case 'updateListing': {
-      const c = getCaller(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
+      const c = await who(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
       return L.updateListing(c, args.id, args.input);
     }
     case 'deleteListing': {
-      const c = getCaller(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
+      const c = await who(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
       return L.deleteListing(c, args.id);
     }
     case 'myListings': {
-      const c = getCaller(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
+      const c = await who(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
       return L.myListings(c);
     }
     case 'listingInquiries': {
-      const c = getCaller(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
+      const c = await who(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
       return Q.listingInquiries(c, args.listingId);
     }
 
     // Any signed-in user
     case 'myFavorites':
-      return L.myFavorites(getCaller(event));
+      return L.myFavorites(await who(event));
     case 'toggleFavorite':
-      return L.toggleFavorite(getCaller(event), args.listingId);
+      return L.toggleFavorite(await who(event), args.listingId);
     case 'sendInquiry':
-      return Q.sendInquiry(getCaller(event), args.input);
+      return Q.sendInquiry(await who(event), args.input);
 
     // Self-serve agent applications. Any signed-in user applies, only Admin reviews.
     case 'myAgentApplication':
-      return A.myApplication(getCaller(event));
+      return A.myApplication(await who(event));
     case 'submitAgentApplication':
-      return A.submitApplication(getCaller(event), args.input, appDeps);
+      return A.submitApplication(await who(event), args.input, appDeps);
     case 'agentApplications': {
-      const c = getCaller(event); requireGroup(c, ['Admin']);
+      const c = await who(event); requireGroup(c, ['Admin']);
       return A.listApplications(c, args.status);
     }
     case 'revokeAgentAccess': {
-      const c = getCaller(event); requireGroup(c, ['Admin']);
+      const c = await who(event); requireGroup(c, ['Admin']);
       return A.revokeAgent(c, args.userId, args.reason, args.hideListings ?? true, appDeps);
     }
     case 'reviewAgentApplication': {
-      const c = getCaller(event); requireGroup(c, ['Admin']);
+      const c = await who(event); requireGroup(c, ['Admin']);
       return A.reviewApplication(c, args.userId, args.decision, args.note, appDeps);
     }
 
     // Address search for the listing editor (agents only). The key stays on the server.
     case 'geocodeAddress': {
-      const c = getCaller(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
+      const c = await who(event); requireGroup(c, AGENT_GROUPS); await A.assertActiveAgent(c);
       return geocode(args.query, {
         fetch,
         apiKey: mapTilerKey(),
@@ -115,28 +122,28 @@ async function route(event: AppSyncResolverEvent<any>) {
 
     // Pools (any signed-in user; the lib checks membership and Admin)
     case 'listPools':
-      getCaller(event);
+      await who(event);
       return P.listPools(args);
     case 'getPool':
-      return P.getPool(getCaller(event), args.id);
+      return P.getPool(await who(event), args.id);
     case 'myPools':
-      return P.myPools(getCaller(event));
+      return P.myPools(await who(event));
     case 'createPool':
-      return P.createPool(getCaller(event), args.input);
+      return P.createPool(await who(event), args.input);
     case 'joinPool':
-      return P.joinPool(getCaller(event), args.poolId, args.monthly);
+      return P.joinPool(await who(event), args.poolId, args.monthly);
     case 'leavePool':
-      return P.leavePool(getCaller(event), args.poolId);
+      return P.leavePool(await who(event), args.poolId);
     case 'createPoolProposal':
-      return P.createProposal(getCaller(event), args.poolId, args.input);
+      return P.createProposal(await who(event), args.poolId, args.input);
     case 'votePoolProposal':
-      return P.voteProposal(getCaller(event), args.poolId, args.proposalId, args.choice);
+      return P.voteProposal(await who(event), args.poolId, args.proposalId, args.choice);
     case 'recordPoolContribution': {
-      const c = getCaller(event); requireGroup(c, ['Admin']);
+      const c = await who(event); requireGroup(c, ['Admin']);
       return P.recordContribution(c, args.poolId, args.userId, args.amount, args.reference, args.note);
     }
     case 'reversePoolContribution': {
-      const c = getCaller(event); requireGroup(c, ['Admin']);
+      const c = await who(event); requireGroup(c, ['Admin']);
       return P.reverseContribution(c, args.poolId, args.entryId, args.reason);
     }
 

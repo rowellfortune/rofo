@@ -115,8 +115,9 @@ function DemoPools({ children }: { children: ReactNode }) {
 
 /** Pools from AppSync. Needs a signed-in user (the pool queries are Cognito only). */
 function ApiPools({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  const admin = inAdminGroup(user?.groups);
+  const { user, adminMfa } = useAuth();
+  // Payment controls are admin tools, so they stay hidden until two step verification is on.
+  const admin = inAdminGroup(user?.groups) && adminMfa === 'ok';
   const [byId, setById] = useState<Record<string, Pool>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

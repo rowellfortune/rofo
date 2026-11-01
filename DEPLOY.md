@@ -36,8 +36,8 @@ Stage names must be lowercase letters and digits. The images bucket name is buil
   ```bash
   npm run build              # app typecheck + production build
   npm run typecheck:backend  # backend, infra and tests
-  npm run test:frontend      # 32 tests
-  npm run test:backend       # 43 tests
+  npm run test:frontend      # 33 tests
+  npm run test:backend       # 57 tests
   ```
 
 ## 3. Decide before you deploy
@@ -118,7 +118,8 @@ Cognito sends the confirmation code by email. The default sender is limited to a
   aws cognito-idp admin-add-user-to-group --user-pool-id <userPoolId> --username you@example.com --group-name Admin
   ```
 - [ ] Sign out and back in. Groups are stored in the token, so the change shows after a new login.
-- [ ] Expect the header to show an **Applications** link.
+- [ ] Expect the header to show an **Applications** link. Opening it shows a **Locked** screen: admin tools need two step verification.
+- [ ] Turn it on now: **Set it up**, scan the QR code with an authenticator app, enter the code. Keep a copy of the key somewhere safe. The admin tools unlock as soon as it shows **On**.
 - [ ] Check the signup trigger worked. Create a second account and look at its groups:
   ```bash
   aws cognito-idp admin-list-groups-for-user --user-pool-id <userPoolId> --username second@example.com
@@ -128,6 +129,8 @@ Cognito sends the confirmation code by email. The default sender is limited to a
 ## 8. Smoke tests
 
 Run in order. Each line says what to expect. Tick it only when you saw it.
+
+Every step that uses an admin (approving, revoking, recording payments) needs that admin to have two step verification on. Do section 7 first.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -181,6 +184,15 @@ Sign in, password reset and two step verification. Use a real inbox and a real a
 | 36 | `/account`, **Turn on two step verification**. Scan the QR code with your phone. | The app shows an entry labelled **RoFo estate** with your email. A wrong code is refused, the right one shows **On**. |
 | 37 | Sign out and sign in again | After the password, a code screen appears. A wrong code is refused. The right one signs you in. |
 | 38 | `/account`, **Turn off** | Sign in goes straight through again |
+
+Admins must have two step verification. Use the admin account for these four, in order:
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 39 | With two step verification **off**, open `/admin/applications` | A **Locked** screen. The page did not load any applications. |
+| 40 | **Set it up** and turn it on | The admin page opens straight away, without signing in again |
+| 41 | Two browsers, same admin. In the second, `/account`, **Turn off**. In the first, still on the admin page, click a tab (**Approved**). | An alert: "Turn on two step verification in your account to use admin tools". The server refused, not only the page. It can take up to a minute for a recent yes to expire. |
+| 42 | Admin who is also an **Agent**, two step verification off. Open `/agent`. | The agent dashboard still works. Only the admin rights are withheld. |
 
 A user who loses their phone is locked out of a two step account. Reset it from the CLI. The person can then sign in with the password and turn it on again at `/account`:
 
@@ -236,7 +248,7 @@ Do these before you let anyone outside your team sign up.
 - [ ] **Practise a restore once** on `dev` (steps in the next section). A backup you never restored is a guess.
 - [ ] **Abuse limits.** There is no WAF or rate limiting on AppSync or the REST API yet. Add AWS WAF before launch.
 - [ ] **Alarms and budget.** Create an AWS Budget alert and CloudWatch alarms for Lambda errors and AppSync 5xx.
-- [ ] **Admins turn on two step verification** at `/account`, and keep a copy of the key. It is optional for everyone and the app does not force it, so check each admin has done it.
+- [ ] **Every admin has two step verification, and a copy of the key.** The app enforces it for admin tools, so an admin without it is locked out of them. Decide who can reset an admin who loses their phone (section 7 has the command). With one admin, that person needs the AWS CLI. Keep a second admin or a break glass plan.
 - [ ] **Pools and money.** The app records pooled contributions but moves no money. Do not accept real contributions until a lawyer has approved the co-ownership agreement, and an escrow or trustee holds the funds.
 - [ ] **Legal pages.** Privacy and terms links in the footer go nowhere yet.
 - [ ] **Custom domain** for the site, and update `WEB_ORIGIN` to match.
@@ -321,11 +333,15 @@ Without step 1, an existing token keeps working until it expires (Cognito's defa
 | "needs a sign in step the app does not support" | The account was created by an admin with a temporary password, so Cognito wants a forced password change | `aws cognito-idp admin-set-user-password --user-pool-id <id> --username <email> --password '<new>' --permanent` |
 | Code screen says "That sign in took too long" | The sign in session expired (a few minutes) before the code was entered | Start again from the password |
 | Stuck at the two step code and the phone is lost | No recovery codes exist | Reset it with the `admin-set-user-mfa-preference` command above |
+| Admin sees "Turn on two step verification in your account to use admin tools" | Intended. Their account has no authenticator app, or they just turned it off. | `/account`, **Set it up** |
+| Admin sees "Could not check two step verification" | The Lambda could not ask Cognito. Missing `cognito-idp:AdminGetUser`, wrong `USER_POOL_ID`, or Cognito throttling. | Check the Lambda role and env. This fails closed on purpose. |
+| Admin turned MFA on but tools stay locked | The page checked before it finished, or an old answer | Click **I already turned it on, check again**. The server accepts it at once. |
 
 ## 14. Known gaps (do not look for these)
 
 - No email to applicants or buyers. Status shows in the app only.
-- Two step verification is by authenticator app only. No text message option, no recovery codes, and it is not enforced for admins.
+- Two step verification is by authenticator app only. No text message option and no recovery codes. It is enforced for admins and optional for everyone else.
+- Admin MFA is checked live against Cognito and a yes is remembered for a minute. An admin who turns it off keeps admin rights for up to that minute.
 - No Google or Apple sign in.
 - Agents added by hand in Cognito have no application, so the Revoke button cannot see them. Use the manual steps in section 11.
 - Hidden listings cannot be un-hidden one by one. They return when the agent is approved again.

@@ -24,7 +24,7 @@ const resolverFn = new sst.aws.Function('GraphqlResolver', {
     USER_POOL_ID: userPool.id, // used to add approved applicants to the Agent group
   },
   // Only these actions, only on this user pool.
-  permissions: [{ actions: ['cognito-idp:AdminAddUserToGroup', 'cognito-idp:AdminRemoveUserFromGroup', 'cognito-idp:AdminUserGlobalSignOut'], resources: [userPool.arn] }],
+  permissions: [{ actions: ['cognito-idp:AdminAddUserToGroup', 'cognito-idp:AdminRemoveUserFromGroup', 'cognito-idp:AdminUserGlobalSignOut', 'cognito-idp:AdminGetUser'], resources: [userPool.arn] }],
 });
 
 export const graphql = new aws.appsync.GraphQLApi('Graphql', {
@@ -105,7 +105,9 @@ rest.route(
   {
     handler: 'backend/rest/presign.handler',
     link: [images, table], // the table is read to check an agent has not been revoked
-    environment: { ALLOWED_ORIGIN: allowOrigin },
+    environment: { ALLOWED_ORIGIN: allowOrigin, USER_POOL_ID: userPool.id },
+    // Read only: used to check an admin has two step verification turned on.
+    permissions: [{ actions: ['cognito-idp:AdminGetUser'], resources: [userPool.arn] }],
   },
   { auth: { jwt: { authorizer: jwt.id } } },
 );

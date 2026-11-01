@@ -10,10 +10,15 @@ process.env.AWS_REGION = 'us-east-1';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ddb } from '../lib/db';
+import { resetMfaCache, MFA_REQUIRED_MESSAGE } from '../lib/mfa';
+import { mfaDeps } from '../lib/mfaDeps';
 import { handler } from '../rest/presign';
 import { parseGroups } from '../utils/RestUtil';
 
 const revoked = new Set<string>();
+// Admins need two step verification to upload. The answer is switchable per test.
+let adminHasMfa = true; let mfaLookups = 0;
+mfaDeps.hasTotp = async () => { mfaLookups++; return adminHasMfa; };
 (ddb as any).send = async (cmd: any) => {
   if (cmd.constructor.name !== 'GetCommand') throw new Error('fake: unsupported');
   const pk: string = cmd.input.Key.pk;
@@ -62,4 +67,23 @@ test('a revoked agent is refused even while their token still says Agent', async
   assert.equal((await call('fine', '[Client Agent]')).status, 200); // others are unaffected
   revoked.add('root'); // an admin is never blocked
   assert.equal((await call('root', '[Admin]')).status, 200);
+});
+
+test('an admin needs two step verification to get an upload URL', async () => {
+  adminHasMfa = false; resetMfaCache();
+  const r = await call('boss', '[Admin]');
+  assert.equal(r.status, 403);
+  assert.equal(r.body.error, MFA_REQUIRED_MESSAGE); // told why, not just "denied"
+  adminHasMfa = true; resetMfaCache();
+  assert.equal((await call('boss', '[Admin]')).status, 200); // turning it on fixes it at once
+});
+
+test('an admin who is also an agent can still upload without it, and agents never trigger a lookup', async () => {
+  adminHasMfa = false; resetMfaCache(); mfaLookups = 0;
+  assert.equal((await call('both', '[Agent Admin]')).status, 200); // keeps the Agent door
+  assert.equal(mfaLookups, 1);
+  mfaLookups = 0;
+  assert.equal((await call('plain-agent', '[Agent]')).status, 200);
+  assert.equal(mfaLookups, 0);
+  adminHasMfa = true;
 });

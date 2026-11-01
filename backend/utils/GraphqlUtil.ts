@@ -1,4 +1,5 @@
 import type { AppSyncResolverEvent } from 'aws-lambda';
+import { blockedMessage } from '../lib/mfa';
 import { AppError } from './AppError';
 
 /** Every GraphQL resolver returns this envelope. */
@@ -10,6 +11,8 @@ export interface Caller {
   email: string;
   name: string;
   groups: string[];
+  /** Set when the Admin group was removed because two step verification is off (or could not be checked). */
+  adminBlocked?: 'mfa' | 'check';
 }
 
 /** Read the caller from a Cognito-authenticated AppSync event. Throws 401 for guests. */
@@ -29,7 +32,10 @@ export function getCaller(event: AppSyncResolverEvent<unknown>): Caller {
 
 /** Throw 403 unless the caller is in one of the given groups. */
 export function requireGroup(caller: Caller, allowed: string[]): void {
-  if (!caller.groups.some((g) => allowed.includes(g))) throw new AppError('Not allowed', 403);
+  if (caller.groups.some((g) => allowed.includes(g))) return;
+  // An admin who was stripped of admin rights should be told why, not just "Not allowed".
+  if (caller.adminBlocked && allowed.includes('Admin')) throw new AppError(blockedMessage(caller.adminBlocked), 403);
+  throw new AppError('Not allowed', 403);
 }
 
 /**

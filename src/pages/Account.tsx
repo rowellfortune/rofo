@@ -7,7 +7,7 @@ type MfaState = 'loading' | 'off' | 'enrolling' | 'on';
 
 /** Your account: who you are, and two step verification with an authenticator app. */
 export function Account() {
-  const { enabled, user, loading, mfa } = useAuth();
+  const { enabled, user, loading, mfa, adminMfa } = useAuth();
   const [state, setState] = useState<MfaState>('loading');
   const [setup, setSetup] = useState<{ secret: string; qr: string } | null>(null);
   const [code, setCode] = useState('');
@@ -72,8 +72,14 @@ export function Account() {
           <h3 id="mfa-title">Two step verification</h3>
           {state === 'on' && <span className="chip-status ok">On</span>}
         </div>
+        {adminMfa === 'missing' && (
+          <div className="notice" role="alert">
+            <strong>Admin tools are locked.</strong> Admins must have two step verification on. Turn it on below and they unlock straight away.
+          </div>
+        )}
+        {adminMfa === 'ok' && <p className="muted small">Required for admins, so the admin tools stay unlocked. Turning it off locks them again.</p>}
         <p className="muted">
-          Sign in with a code from an authenticator app as well as your password. Recommended for agents and strongly recommended for admins.
+          Sign in with a code from an authenticator app as well as your password. Recommended for agents and required for admins.
         </p>
         {done && <div className="success" role="status">{done}</div>}
         {error && <div className="notice small" role="alert">{error}</div>}

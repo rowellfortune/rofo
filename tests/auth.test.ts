@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { checkPassword, formatSecret, friendlyAuthError, isCode, nextAfterSignIn, normalizeCode } from '../src/lib/authFlow';
+import { adminGate, checkPassword, formatSecret, friendlyAuthError, isCode, nextAfterSignIn, normalizeCode } from '../src/lib/authFlow';
 
 test('sign in steps lead to the right screen', () => {
   assert.equal(nextAfterSignIn('DONE', true), 'done');
@@ -55,4 +55,12 @@ test('error messages are plain, never raw AWS text, and sign in does not reveal 
   const leaky = friendlyAuthError({ name: 'ResourceNotFoundException', message: 'User pool us-east-1_SECRET does not exist' });
   assert.ok(!leaky.includes('SECRET'));
   for (const odd of [undefined, null, 'text', 42, {}]) assert.match(friendlyAuthError(odd), /Something went wrong/);
+});
+
+test('admin pages: open only with two step verification, and never open while unsure', () => {
+  assert.equal(adminGate(true, 'ok'), 'allow');
+  assert.equal(adminGate(true, 'missing'), 'needs-mfa');
+  assert.equal(adminGate(true, 'unknown'), 'wait');
+  assert.equal(adminGate(true, 'na'), 'wait'); // first render, before the check starts: wait, do not open
+  for (const mfa of ['ok', 'missing', 'unknown', 'na'] as const) assert.equal(adminGate(false, mfa), 'deny', mfa); // not an admin: never
 });

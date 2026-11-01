@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { adminGate } from '../lib/authFlow';
 import { useAuth } from '../state/AuthContext';
 
 /** True when the user may manage listings. */
@@ -70,11 +71,23 @@ export function RequireAgent({ children }: { children: ReactNode }) {
   );
 }
 
-/** Admins only. */
+/** Admins only, and only with two step verification on. The server enforces the same rule. */
 export function RequireAdmin({ children }: { children: ReactNode }) {
+  const { user, adminMfa, recheckAdminMfa } = useAuth();
+  const gate = adminGate(isAdmin(user?.groups), adminMfa);
   return (
     <Guard allow={isAdmin} signedOutTitle="Admin sign in" denied={<><h1>Admins only</h1><p className="muted">You do not have access to this page.</p><Link className="btn btn-ghost" to="/">Back home</Link></>}>
-      {children}
+      {gate === 'allow' ? children : gate === 'needs-mfa' ? (
+        <div className="container detail">
+          <div className="form-card">
+            <span className="chip-status bad">Locked</span>
+            <h1>Turn on two step verification</h1>
+            <p className="muted">Admin tools need two step verification. It protects the payments, applications and agent access that admins control. It takes about a minute with an authenticator app.</p>
+            <Link className="btn btn-primary" to="/account">Set it up</Link>
+            <button className="btn btn-ghost" onClick={recheckAdminMfa}>I already turned it on, check again</button>
+          </div>
+        </div>
+      ) : <div className="container section"><p className="muted">Checking your account...</p></div>}
     </Guard>
   );
 }

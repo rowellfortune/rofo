@@ -134,3 +134,17 @@ Screens: `/login` (sign in, sign up, confirm email, forgot password, reset passw
 - Passwords: at least 10 characters with upper case, lower case and a number. The page checks the same rules before sending. Cognito remains the authority.
 - The sign in uses SRP, so the password is never sent to the server.
 - Pure rules and error wording live in `src/lib/authFlow.ts` and are covered by `tests/auth.test.ts`.
+
+## Admin two step verification (enforced)
+
+Cognito cannot require MFA for one group, so the backend does (`backend/lib/mfa.ts`, wired at `backend/graphql/handler.ts` and `backend/rest/presign.ts`).
+
+- On every request from a user in the `Admin` group, the Lambda asks Cognito (`AdminGetUser`) whether that user has an authenticator app switched on.
+- If not, the `Admin` group is removed from the caller before anything else runs, so the person is treated as an ordinary user. This covers every admin check, including the ones inside the libraries and any added later. The error says why ("Turn on two step verification in your account to use admin tools").
+- If Cognito cannot be asked, admin rights are withheld too (fails closed).
+- A yes is remembered for 60 seconds per container. A no is never remembered, so turning MFA on works at once. Turning it off takes effect within a minute.
+- Buyers and agents trigger no lookup. An admin who is also an Agent keeps the agent rights.
+- Why this equals "MFA at sign in": with optional MFA, Cognito always challenges a user who has it on. Enabled therefore means a code was requested.
+- Needs `cognito-idp:AdminGetUser` and `USER_POOL_ID` on the resolver Lambda and the upload Lambda (set in `infra/api.ts`).
+- The screens (`RequireAdmin`, payment controls, the account banner) explain the lock. The server is the real control.
+- Not done: forcing the code in the token itself (a pre token generation trigger would also stop an admin at AppSync before the Lambda). The Lambda check is enough for now and is simpler to reason about.

@@ -334,3 +334,5 @@ p { margin: 0 0 1rem; }
 .mfa-qr img { background: #fff; padding: 6px; border-radius: var(--radius); }
 .mfa-secret { display: block; margin-top: .35rem; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 1.05rem; letter-spacing: .06em; background: var(--surface-2); border: 1px solid var(--line); padding: .5rem .75rem; border-radius: var(--radius); user-select: all; }
 .header-user:hover { color: var(--ink); }
+
+.form-card .chip-status { align-self: flex-start; }

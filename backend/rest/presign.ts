@@ -5,6 +5,8 @@ import { Resource } from 'sst';
 import { z } from 'zod';
 import { AppError } from '../utils/AppError';
 import { assertNotRevoked } from '../lib/applications';
+import { blockedMessage } from '../lib/mfa';
+import { enforceAdminMfa } from '../lib/mfaDeps';
 import { RestUtil } from '../utils/RestUtil';
 
 const s3 = new S3Client({});
@@ -22,8 +24,12 @@ const Body = z.object({ contentType: z.enum(['image/jpeg', 'image/png', 'image/w
 export const handler = RestUtil.restHandler(async (event) => {
   const sub = RestUtil.getSub(event);
   // Only agents and admins publish listings, so only they may upload photos. A revoked agent is blocked at once.
-  const groups = RestUtil.getGroups(event);
-  if (!groups.some((g) => g === 'Agent' || g === 'Admin')) throw new AppError('Agent access needed to upload photos', 403);
+  // An admin without two step verification is treated as an ordinary user here too.
+  const caller = await enforceAdminMfa({ sub, name: '', email: '', groups: RestUtil.getGroups(event) });
+  const groups = caller.groups;
+  if (!groups.some((g) => g === 'Agent' || g === 'Admin')) {
+    throw new AppError(caller.adminBlocked ? blockedMessage(caller.adminBlocked) : 'Agent access needed to upload photos', 403);
+  }
   await assertNotRevoked(sub, groups);
   const parsed = Body.safeParse(JSON.parse(event.body ?? '{}'));
   if (!parsed.success) throw new AppError('contentType must be jpeg, png or webp', 400);
