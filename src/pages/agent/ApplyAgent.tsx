@@ -22,9 +22,9 @@ export function ApplyAgent() {
     if (user?.name) setForm((f) => (f.name ? f : { ...f, name: user.name }));
   }, [user?.name]);
 
-  // Load the user's existing application.
+  // Load the user's existing application. Agents already have access, so skip the request.
   useEffect(() => {
-    if (!enabled || !user) return;
+    if (!enabled || !user || isAgent(user.groups)) return;
     apiMyApplication()
       .then((a) => { setApp(a); if (a && canReapply(a.status)) setForm(applicationToForm(a)); })
       .catch((e: Error) => { setApp(null); setBanner(e.message); });

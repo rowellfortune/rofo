@@ -14,7 +14,12 @@
     "seed": "sst shell --stage dev -- tsx backend/scripts/seed.ts",
     "test:backend": "SST_RESOURCE_Table={\\\"name\\\":\\\"test-table\\\"} SST_RESOURCE_Images={\\\"name\\\":\\\"test-bucket\\\"} SST_RESOURCE_App={\\\"name\\\":\\\"rofo\\\",\\\"stage\\\":\\\"test\\\"} tsx --test backend/test/pools.test.ts backend/test/geocode.test.ts backend/test/applications.test.ts backend/test/policy.test.ts backend/test/listings.test.ts backend/test/rest.test.ts backend/test/mfa.test.ts",
     "test:frontend": "tsx --test tests/api.test.ts tests/agent.test.ts tests/pools.test.ts tests/revoke.test.ts tests/auth.test.ts",
-    "check:env": "node scripts/check-env.mjs"
+    "check:env": "node scripts/check-env.mjs",
+    "test:components": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
+    "test": "npm run test:components && npm run test:frontend && npm run test:backend"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1161.0",
@@ -32,15 +37,22 @@
   },
   "devDependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.1161.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
     "@types/aws-lambda": "^8.10.164",
     "@types/node": "^24.19.2",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "@vitest/coverage-v8": "^5.1.0",
+    "jsdom": "^31.0.0",
     "oxlint": "^1.89.0",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "vitest": "^5.1.0"
   }
 }

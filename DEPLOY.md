@@ -36,9 +36,10 @@ Stage names must be lowercase letters and digits. The images bucket name is buil
   ```bash
   npm run build              # app typecheck + production build
   npm run typecheck:backend  # backend, infra and tests
-  npm run test:frontend      # 33 tests
-  npm run test:backend       # 57 tests
+  npm run typecheck:test     # component tests
+  npm test                   # all suites: 286 component + 33 frontend + 57 backend
   ```
+  `npm test` runs three suites. `test:components` (Vitest + Testing Library in jsdom) renders every component, page, provider and hook. `test:frontend` and `test:backend` (node:test) cover the API client, pool rules and Lambda handlers. `npm run coverage` prints the component coverage report.
 
 ## 3. Decide before you deploy
 
