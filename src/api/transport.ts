@@ -60,10 +60,13 @@ export async function getAuth(): Promise<AmplifyAuth> {
 
 /** Real network call. Unwraps the { success, data, error } envelope and throws ApiError on failure. */
 const realCall: Call = async <T,>(field: string, query: string, variables: Record<string, unknown>, mode: AuthMode) => {
-  const { client } = await init();
+  const { client, auth } = await init();
   let res: { data?: Record<string, { success: boolean; data: T; error?: string } | null> };
   try {
-    res = (await client.graphql({ query, variables, authMode: mode })) as typeof res;
+    // Amplify sends the ACCESS token by default. It has no name or email, so the resolvers would see
+    // every user as "RoFo agent" with no email. AppSync accepts the ID token too, and that one has both.
+    const idToken = mode === 'userPool' ? (await auth.fetchAuthSession()).tokens?.idToken?.toString() : undefined;
+    res = (await client.graphql({ query, variables, authMode: mode, ...(idToken && { authToken: idToken }) })) as typeof res;
   } catch (err) {
     const e = err as { errors?: { message?: string }[]; message?: string };
     throw new ApiError(e.errors?.[0]?.message ?? e.message ?? 'Request failed');

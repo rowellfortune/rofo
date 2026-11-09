@@ -19,7 +19,12 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
-    "test": "npm run test:components && npm run test:frontend && npm run test:backend"
+    "test": "npm run test:components && npm run test:frontend && npm run test:backend",
+    "e2e": "playwright test",
+    "e2e:demo": "playwright test --project=demo",
+    "e2e:api": "playwright test --project=api",
+    "e2e:backend": "tsx e2e/fake/server.ts",
+    "typecheck:e2e": "tsc -p tsconfig.e2e.json"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1161.0",
@@ -37,6 +42,7 @@
   },
   "devDependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.1161.0",
+    "@playwright/test": "^1.63.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -48,6 +54,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "@vitest/coverage-v8": "^5.1.0",
+    "dynalite": "^4.0.0",
     "jsdom": "^31.0.0",
     "oxlint": "^1.89.0",
     "tsx": "^4.23.15",

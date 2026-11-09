@@ -38,8 +38,10 @@ Stage names must be lowercase letters and digits. The images bucket name is buil
   npm run typecheck:backend  # backend, infra and tests
   npm run typecheck:test     # component tests
   npm test                   # all suites: 286 component + 33 frontend + 57 backend
+  npm run e2e                # 24 end to end tests in Chromium, about 2 minutes
   ```
   `npm test` runs three suites. `test:components` (Vitest + Testing Library in jsdom) renders every component, page, provider and hook. `test:frontend` and `test:backend` (node:test) cover the API client, pool rules and Lambda handlers. `npm run coverage` prints the component coverage report.
+  `npm run e2e` drives the production build in a real browser. The API half runs the real GraphQL and upload handlers against in-memory DynamoDB and a fake Cognito, so sign up, SRP sign in, two step verification, agent approval, photo uploads, pools and revocation are all exercised before any AWS exists. See `e2e/README.md` for what it can and cannot prove.
 
 ## 3. Decide before you deploy
 
