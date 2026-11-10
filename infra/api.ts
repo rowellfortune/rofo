@@ -30,7 +30,10 @@ const resolverFn = new sst.aws.Function('GraphqlResolver', {
 export const graphql = new aws.appsync.GraphQLApi('Graphql', {
   name: `${$app.name}-${$app.stage}`,
   authenticationType: 'AMAZON_COGNITO_USER_POOLS',
-  userPoolConfig: { userPoolId: userPool.id, awsRegion: region, defaultAction: 'DENY' },
+  // ALLOW is required: AppSync rejects DENY when additional auth providers exist (400 on CreateGraphqlApi).
+  // Access is still locked down per field by the schema directives (@aws_iam, @aws_cognito_user_pools with
+  // cognito_groups), and the resolver Lambda re-checks groups on every call.
+  userPoolConfig: { userPoolId: userPool.id, awsRegion: region, defaultAction: 'ALLOW' },
   // Guests (identity pool unauth role) use IAM for the public queries.
   additionalAuthenticationProviders: [{ authenticationType: 'AWS_IAM' }],
   schema: readFileSync('backend/graphql/schema.graphql', 'utf8'),
