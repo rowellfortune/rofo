@@ -1,0 +1,114 @@
+# Test, then deploy RoFo with SST.
+#   push to main        -> all tests -> sst deploy --stage dev
+#   push to production  -> all tests -> waits for approval (GitHub environment "production") -> sst deploy --stage production
+#   pull request        -> all tests only, never deploys
+#
+# AWS access: no stored keys. GitHub's OIDC token is exchanged for short-lived credentials of the
+# role created by infra/github-deploy-role.cfn.yml, which only trusts main and the production environment.
+name: Test and deploy
+
+on:
+  push:
+    branches: [main, production]
+  pull_request:
+  workflow_dispatch:
+
+# One deploy per branch at a time. A newer push waits instead of racing the running deploy.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  DEPLOY_ROLE: arn:aws:iam::861276091706:role/rofo-github-deploy
+  SST_TELEMETRY_DISABLED: '1'
+
+jobs:
+  test:
+    name: Typecheck, unit and E2E tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # SST's platform types (.sst/platform) are generated, not committed. Needed for the infra typecheck.
+      - run: npx sst install --stage dev
+      - run: npm run typecheck:backend
+      - run: npm run typecheck:test
+      - run: npm run typecheck:e2e
+      - run: npm run build
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - name: Keep the E2E report when something fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            e2e/.report
+            e2e/.results
+          retention-days: 7
+
+  deploy-dev:
+    name: Deploy dev
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write # lets the job request the OIDC token for AWS
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 7200
+      - name: sst deploy --stage dev
+        run: npx sst deploy --stage dev
+        env:
+          # Repository variables (Settings > Secrets and variables > Actions > Variables).
+          GEOCODE_USER_AGENT: ${{ vars.GEOCODE_USER_AGENT }}
+
+  deploy-production:
+    name: Deploy production
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Add required reviewers to this environment in GitHub, so production waits for a click.
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 7200
+      - name: sst deploy --stage production
+        run: npx sst deploy --stage production
+        env:
+          GEOCODE_USER_AGENT: ${{ vars.GEOCODE_USER_AGENT }}
+          WEB_ORIGIN: ${{ vars.WEB_ORIGIN }}

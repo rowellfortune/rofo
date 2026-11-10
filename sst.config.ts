@@ -15,33 +15,8 @@ export default $config({
       providers: { aws: { region: 'us-east-1' } },
     };
   },
-  /**
-   * SST Console Autodeploy: a push to GitHub runs `sst deploy` on a CodeBuild runner in our own AWS account.
-   * Does nothing until the repo is connected in the Console (console.sst.dev, app settings).
-   */
-  console: {
-    autodeploy: {
-      /**
-       * Which push goes to which stage. Anything else is skipped: other branches, pull requests, tags,
-       * and branch deletions. Without this, SST would create a new stage for every branch and PR.
-       */
-      target(event) {
-        if (event.type !== 'branch' || event.action !== 'pushed') return;
-        if (event.branch === 'main') return { stage: 'dev' };
-        if (event.branch === 'production') return { stage: 'production' };
-      },
-      /**
-       * Install, run the tests, then deploy. A failing test stops the deploy.
-       * SST_STAGE is set by the runner, so `sst deploy` needs no --stage.
-       * The E2E suite is left out: it needs a browser the runner does not have. Run it before pushing.
-       */
-      async workflow({ $ }) {
-        await $`npm ci`;
-        await $`npm test`;
-        await $`npx sst deploy`;
-      },
-    },
-  },
+  // Deploys run from GitHub Actions (.github/workflows/deploy.yml), not SST Console Autodeploy.
+  // Do not add a console.autodeploy block back while that workflow exists, or a push deploys twice.
   async run() {
     // Register these BEFORE any component is created, or they silently do nothing.
     // $transform reaches every Function, including the ones SST creates for API routes and Cognito triggers.

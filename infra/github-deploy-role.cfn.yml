@@ -1,0 +1,66 @@
+# One-time AWS setup so GitHub Actions can deploy RoFo without stored AWS keys.
+#
+# GitHub proves which repo, branch or environment a run comes from with an OIDC token.
+# AWS checks that token and hands the run short-lived credentials for the role below.
+#
+# Who may assume the role (nothing else can):
+#   - pushes to main in rowellfortune/rofo                     -> deploys stage dev
+#   - jobs in the "production" GitHub environment of that repo -> deploys stage production
+#
+# Create it once: CloudFormation > Create stack > upload this file, stack name rofo-github-deploy,
+# tick "I acknowledge that AWS CloudFormation might create IAM resources".
+# If the account already has the GitHub OIDC provider, set CreateOidcProvider to false.
+AWSTemplateFormatVersion: '2010-09-09'
+Description: RoFo - IAM role that GitHub Actions assumes (via OIDC) to run sst deploy.
+
+Parameters:
+  GitHubRepo:
+    Type: String
+    Default: rowellfortune/rofo
+    Description: owner/name of the repository allowed to deploy.
+  CreateOidcProvider:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: false if token.actions.githubusercontent.com already exists in this account.
+
+Conditions:
+  MakeProvider: !Equals [!Ref CreateOidcProvider, 'true']
+
+Resources:
+  GitHubOidc:
+    Type: AWS::IAM::OIDCProvider
+    Condition: MakeProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: rofo-github-deploy
+      Description: Assumed by GitHub Actions in rowellfortune/rofo to run sst deploy.
+      MaxSessionDuration: 7200 # a first deploy with CloudFront can take a while
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                # Exact matches only: other branches, forks and pull requests cannot assume this role.
+                token.actions.githubusercontent.com:sub:
+                  - !Sub repo:${GitHubRepo}:ref:refs/heads/main
+                  - !Sub repo:${GitHubRepo}:environment:production
+      # SST creates IAM roles, Lambdas, CloudFront, Cognito, AppSync and more, so the first deploys
+      # need broad rights. Replace with a scoped policy once the stack is stable.
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+
+Outputs:
+  RoleArn:
+    Description: Put this in the workflow (it is already there if the name was not changed).
+    Value: !GetAtt DeployRole.Arn
