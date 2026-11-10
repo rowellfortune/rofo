@@ -20,7 +20,7 @@ const resolverFn = new sst.aws.Function('GraphqlResolver', {
   timeout: '15 seconds',
   // Nominatim asks apps to identify themselves. Set a real contact for production.
   environment: {
-    GEOCODE_USER_AGENT: process.env.GEOCODE_USER_AGENT ?? 'rofo-estate/1.0',
+    GEOCODE_USER_AGENT: process.env.GEOCODE_USER_AGENT || 'rofo-estate/1.0', // || not ??: CI passes an unset variable as ''
     USER_POOL_ID: userPool.id, // used to add approved applicants to the Agent group
   },
   // Only these actions, only on this user pool.
