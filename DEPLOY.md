@@ -77,6 +77,17 @@ Stage names must be lowercase letters and digits. The images bucket name is buil
   ```
   Lost it? Run `npx sst deploy --stage dev` again. It changes nothing and prints the outputs.
 
+### Or: deploy on every push (SST Console Autodeploy)
+
+`sst.config.ts` has an `autodeploy` block. Once the repo is connected, a push to `main` deploys `dev` and a push to a `production` branch deploys `production`. The deploy runs on a CodeBuild runner in your own AWS account. It runs `npm test` first, and a failing test stops the deploy. Other branches, pull requests and branch deletions are ignored.
+
+- [ ] In the SST Console, open the workspace linked to this AWS account. It has been connected since Dec 2024: stack `SSTConsole-oxzo0tyo...` in `us-east-1`.
+- [ ] Install the SST GitHub app and give it access to `rowellfortune/rofo`.
+- [ ] In the RoFo app settings, add environments for `dev` and `production`. Set the geocoding contact variable from step 3 on both, and `WEB_ORIGIN` on `production`.
+- [ ] Push to `main`. Follow the run under Autodeploy. The outputs appear there, the same as in step 4.
+
+The E2E suite does not run there, because the runner has no browser. Run `npm run e2e` before you push.
+
 ## 5. Connect the frontend
 
 - [ ] Create `.env.local` in the repo root. It is git-ignored.
