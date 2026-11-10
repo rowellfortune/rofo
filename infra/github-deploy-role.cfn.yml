@@ -18,6 +18,10 @@ Parameters:
     Type: String
     Default: rowellfortune/rofo
     Description: owner/name of the repository allowed to deploy.
+  GitHubRepoIds:
+    Type: String
+    Default: rowellfortune@14199186/rofo@1440780947
+    Description: owner@ownerId/repo@repoId, the form GitHub now puts in the token. Survives renames.
   CreateOidcProvider:
     Type: String
     Default: 'true'
@@ -52,7 +56,10 @@ Resources:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
                 # Exact matches only: other branches, forks and pull requests cannot assume this role.
+                # GitHub sends the ID form (repo:owner@id/name@id:...). The plain-name form is kept as a fallback.
                 token.actions.githubusercontent.com:sub:
+                  - !Sub repo:${GitHubRepoIds}:ref:refs/heads/main
+                  - !Sub repo:${GitHubRepoIds}:environment:production
                   - !Sub repo:${GitHubRepo}:ref:refs/heads/main
                   - !Sub repo:${GitHubRepo}:environment:production
       # SST creates IAM roles, Lambdas, CloudFront, Cognito, AppSync and more, so the first deploys
