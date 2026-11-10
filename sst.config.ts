@@ -1,7 +1,7 @@
 /// <reference path="./.sst/platform/config.d.ts" />
 
 /**
- * RoFo estate backend (SST v3).
+ * RoFo estate backend (SST v4).
  * Infra is split by concern under /infra and imported in order.
  */
 export default $config({

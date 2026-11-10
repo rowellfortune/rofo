@@ -15,6 +15,8 @@ Stage names must be lowercase letters and digits. The images bucket name is buil
 
 ---
 
+> **SST v4.** RoFo runs on SST 4.17.2 (Pulumi AWS provider v7). It was moved from v3 before its first deploy, so there was no state to migrate. Do not deploy it with an SST v3 CLI.
+
 ## 1. Before you start
 
 - [ ] An AWS account you can bill, and credentials on this machine.

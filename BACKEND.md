@@ -1,4 +1,4 @@
-# RoFo backend (SST v3.19.3)
+# RoFo backend (SST v4.17.2)
 
 Deploying for the first time? Follow [DEPLOY.md](./DEPLOY.md). This file is the reference for how each part works.
 

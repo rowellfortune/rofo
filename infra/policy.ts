@@ -20,7 +20,7 @@ export const logRetention = (stage: string): Retention => (isProduction(stage) ?
 
 /**
  * Point in time recovery lets you restore the table to any second in the last 35 days.
- * SST 3.19 turns it on for every table already. We pin it so an SST upgrade cannot switch it off.
+ * SST turns it on for every table already (3.19 and 4.17). We pin it so an SST upgrade cannot switch it off.
  * It protects against bad writes and deleted items. It does not protect against the table being deleted.
  */
 export const pointInTimeRecovery = (_stage: string): boolean => true;
