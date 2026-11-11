@@ -2,6 +2,7 @@
  * Seed the DEV table with the sample listings from the frontend mock data.
  * Run:  npm run seed          (same as: npx sst shell --stage dev -- tsx backend/scripts/seed.ts)
  * Refuses to run on the production stage, because these are fake listings.
+ * Safe to run again: listings have fixed ids (seed-l1 ... seed-l12) and are overwritten.
  */
 import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import { Resource } from 'sst';
@@ -18,7 +19,8 @@ async function main() {
   const base = Date.now();
   for (const [i, l] of listings.entries()) {
     const createdAt = new Date(base - i * 3_600_000).toISOString(); // spread over hours
-    const id = crypto.randomUUID();
+    // Fixed ids, so running the seed again overwrites the same 12 listings instead of adding 12 more.
+    const id = `seed-${l.id}`;
     const { id: _mockId, hue: _hue, agent, ...rest } = l; // keeps lat and lng so seeded homes show on the map
     void [_mockId, _hue];
     const item = {

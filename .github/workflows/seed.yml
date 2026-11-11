@@ -1,0 +1,33 @@
+# Load the 12 sample listings into the dev table. Run by hand: Actions > Seed dev > Run workflow (branch main).
+# Safe to run again: the listings have fixed ids and are overwritten, not duplicated.
+# The seed script itself refuses to touch the production stage.
+name: Seed dev
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # OIDC token for the AWS role
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The deploy role trusts main only, so this must run from main.
+    if: github.ref == 'refs/heads/main'
+    env:
+      SST_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::861276091706:role/rofo-github-deploy
+          aws-region: us-east-1
+      # sst shell injects the dev stage's linked resources (table name, app stage) into the script.
+      - run: npx sst shell --stage dev -- npx tsx backend/scripts/seed.ts
